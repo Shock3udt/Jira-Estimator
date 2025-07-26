@@ -1,0 +1,87 @@
+---
+- name: Deploy Jira Estimation App and Configure Nginx
+  hosts: localhost
+  connection: local
+  become: true
+
+  vars:
+    app_dir: /opt/jira-estimation
+    nginx_config_name: jira-estimation.conf
+    nginx_sites_available: /etc/nginx/sites-available
+    nginx_sites_enabled: /etc/nginx/sites-enabled
+    domain: localhost
+
+  tasks:
+    - name: Deploy Jira Estimation App
+      block:
+        - name: Create application directory
+          ansible.builtin.file:
+            path: "{{ app_dir }}"
+            state: directory
+            mode: '0755'
+
+        - name: Copy application files
+          ansible.builtin.copy:
+            src: ../
+            dest: "{{ app_dir }}"
+            mode: '0755'
+
+        - name: Create and install systemd service
+          ansible.builtin.template:
+            src: docker-compose.service.j2
+            dest: /etc/systemd/system/jira-estimation.service
+            mode: '0644'
+          notify: Reload systemd and restart service
+
+        - name: Enable and start the application service
+          ansible.builtin.systemd:
+            name: jira-estimation
+            state: started
+            enabled: yes
+            daemon_reload: yes
+      tags:
+        - app
+
+    - name: Configure Nginx
+      block:
+        - name: Ensure Nginx sites-available directory exists
+          ansible.builtin.file:
+            path: "{{ nginx_sites_available }}"
+            state: directory
+            mode: '0755'
+
+        - name: Ensure Nginx sites-enabled directory exists
+          ansible.builtin.file:
+            path: "{{ nginx_sites_enabled }}"
+            state: directory
+            mode: '0755'
+
+        - name: Generate Nginx configuration from template
+          ansible.builtin.template:
+            src: nginx.conf.j2
+            dest: "{{ nginx_sites_available }}/{{ nginx_config_name }}"
+            mode: '0644'
+          vars:
+            server_name: "{{ domain }}"
+          notify: Reload Nginx
+
+        - name: Enable the Nginx site
+          ansible.builtin.file:
+            src: "{{ nginx_sites_available }}/{{ nginx_config_name }}"
+            dest: "{{ nginx_sites_enabled }}/{{ nginx_config_name }}"
+            state: link
+          notify: Reload Nginx
+      tags:
+        - nginx
+
+  handlers:
+    - name: Reload systemd and restart service
+      ansible.builtin.systemd:
+        name: jira-estimation
+        state: restarted
+        daemon_reload: yes
+
+    - name: Reload Nginx
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
