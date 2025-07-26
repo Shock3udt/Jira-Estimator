@@ -114,3 +114,60 @@ You can now access the Jira Estimation Tool through Nginx by navigating to [http
 ## Summary
 
 By following these steps, you have successfully deployed the application behind a local Nginx reverse proxy. All traffic to `http://localhost` is now served by your application container, with Nginx managing the connection.
+
+## Automating with Ansible
+
+For users who prefer automation, an Ansible playbook is available to configure Nginx and deploy the application. This playbook automates the process of creating the configuration file, enabling the site, and reloading Nginx.
+
+### Prerequisites
+
+-   **Ansible**: Ensure Ansible is installed on your local machine.
+    ```bash
+    # Example using pip
+    pip install ansible
+    ```
+- **Docker and Docker Compose**: Must be installed on the target machine.
+
+### Playbook Overview
+
+The `deploy_nginx.yml` playbook is designed to be idempotent and handles the full application lifecycle:
+
+1.  **Application Deployment (`app` tag)**:
+    -   Copies the project files to `/opt/jira-estimation`.
+    -   Creates a systemd service (`jira-estimation.service`) to manage the application's Docker container.
+    -   Starts and enables the service, ensuring the application runs on boot.
+
+2.  **Nginx Configuration (`nginx` tag)**:
+    -   Generates an Nginx site configuration from a template.
+    -   Enables the site by creating the necessary symbolic link.
+    -   Reloads the Nginx service to apply the configuration.
+
+### Running the Playbook
+
+1.  **Navigate to the Ansible directory**:
+    ```bash
+    cd ansible
+    ```
+
+2.  **Run the playbook**:
+
+    -   To run the full deployment (app and Nginx) with the default `localhost` domain:
+        ```bash
+        ansible-playbook deploy_nginx.yml --ask-become-pass
+        ```
+
+    -   To deploy with a custom domain (e.g., `jira.example.com`):
+        ```bash
+        ansible-playbook deploy_nginx.yml --extra-vars "domain=jira.example.com" --ask-become-pass
+        ```
+    - To run only the application deployment tasks:
+        ```bash
+        ansible-playbook deploy_nginx.yml --tags "app" --ask-become-pass
+        ```
+    - To run only the Nginx configuration tasks:
+        ```bash
+        ansible-playbook deploy_nginx.yml --tags "nginx" --ask-become-pass
+        ```
+
+
+The `--ask-become-pass` flag will prompt you for your `sudo` password, which is required to modify system files and services.
