@@ -10,7 +10,7 @@
 
 **A collaborative web application for agile story point estimation with Jira integration**
 
-[🚀 Live Demo](https://lnh8imcj988z.manus.space) • [📖 Documentation](#documentation) • [🐛 Report Bug](../../issues) • [✨ Request Feature](../../issues)
+[🚀 Live Demo](https://lnh8imcj988z.manus.space) • [📖 Documentation](#documentation) • [🐛 Report Bug](https://github.com/Shock3udt/Jira-Estimator/issues) • [✨ Request Feature](https://github.com/Shock3udt/Jira-Estimator/issues)
 
 </div>
 
@@ -32,8 +32,8 @@
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd "Jira Estimation Webpage with Token Authentication and Voting"
+   git clone https://github.com/Shock3udt/Jira-Estimator.git
+   cd Jira-Estimator
    ```
 
 2. **Run with Docker**
@@ -191,8 +191,8 @@ project = MYPROJECT AND fixVersion = "Sprint 1" AND status = "Ready for Developm
 
 1. **Clone and navigate to the project**
    ```bash
-   git clone <repository-url>
-   cd "Jira Estimation Webpage with Token Authentication and Voting"
+   git clone https://github.com/Shock3udt/Jira-Estimator.git
+   cd Jira-Estimator
    ```
 
 2. **Backend development**
@@ -295,15 +295,15 @@ This project is licensed under the MIT License - see the [LICENSE](./LICENSE) fi
 ## 🆘 Support
 
 - 📖 Check our [documentation](#documentation)
-- 🐛 [Report bugs](../../issues)
-- 💡 [Request features](../../issues)
+- 🐛 [Report bugs](https://github.com/Shock3udt/Jira-Estimator/issues)
+- 💡 [Request features](https://github.com/Shock3udt/Jira-Estimator/issues)
 - 💬 Join our discussions
 
 ## 📊 Project Status
 
-![GitHub issues](https://img.shields.io/github/issues/username/repo)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/username/repo)
-![GitHub last commit](https://img.shields.io/github/last-commit/username/repo)
+![GitHub issues](https://img.shields.io/github/issues/Shock3udt/Jira-Estimator)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/Shock3udt/Jira-Estimator)
+![GitHub last commit](https://img.shields.io/github/last-commit/Shock3udt/Jira-Estimator)
 
 ---
 

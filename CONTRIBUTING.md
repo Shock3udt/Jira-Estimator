@@ -32,12 +32,12 @@ We love feature suggestions! Please:
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
    ```bash
-   git clone https://github.com/your-username/jira-estimation-tool.git
-   cd jira-estimation-tool
+   git clone https://github.com/your-username/Jira-Estimator.git
+   cd Jira-Estimator
    ```
 3. **Add the original repository as upstream**:
    ```bash
-   git remote add upstream https://github.com/original-owner/jira-estimation-tool.git
+   git remote add upstream https://github.com/Shock3udt/Jira-Estimator.git
    ```
 
 #### Development Setup
