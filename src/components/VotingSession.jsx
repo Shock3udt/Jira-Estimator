@@ -227,11 +227,13 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
                       {issue.issue_title}
                     </CardDescription>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm text-gray-600">
-                      {stats.voteCount} votes from {stats.uniqueVoters} voters
+                  {(userVote || session.is_closed) && (
+                    <div className="text-right">
+                      <div className="text-sm text-gray-600">
+                        {stats.voteCount} votes from {stats.uniqueVoters} voters
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -299,7 +301,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
                 )}
 
                 {/* Vote Results */}
-                {stats.voteCount > 0 && (
+                {(userVote || session.is_closed) && stats.voteCount > 0 && (
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm">Votes:</h4>
                     <div className="flex flex-wrap gap-2">
