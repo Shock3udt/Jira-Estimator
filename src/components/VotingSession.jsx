@@ -113,13 +113,14 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
   const getVoteStats = (issueKey) => {
     const issueVotes = votes[issueKey] || []
     const voteCount = issueVotes.length
-    const uniqueVoters = new Set(issueVotes.map(v => v.voter_name)).size
+    const voterNames = [...new Set(issueVotes.map((v) => v.voter_name))]
+    const uniqueVoters = voterNames.length
     const estimations = issueVotes.reduce((acc, vote) => {
       acc[vote.estimation] = (acc[vote.estimation] || 0) + 1
       return acc
     }, {})
 
-    return { voteCount, uniqueVoters, estimations }
+    return { voteCount, uniqueVoters, estimations, voterNames }
   }
 
   const getUserVote = (issueKey) => {
@@ -138,6 +139,8 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
   if (!session) {
     return <div className="text-center py-8">Session not found</div>
   }
+
+  const voterNames = [...new Set(Object.values(votes).flat().map((v) => v.voter_name))];
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
@@ -172,12 +175,12 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
               <Clock className="w-4 h-4" />
               {new Date(session.created_at).toLocaleString()}
             </div>
-            <div className="flex items-center gap-1">
+            <div
+              className="flex items-center gap-1 cursor-pointer"
+              title={`Voters: ${voterNames.join(', ')}`}
+            >
               <Users className="w-4 h-4" />
-              {Object.values(votes).flat().reduce((acc, vote) => {
-                acc.add(vote.voter_name)
-                return acc
-              }, new Set()).size} voters
+              {voterNames.length} voters
             </div>
           </div>
         </CardContent>
@@ -229,8 +232,11 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
                   </div>
                   {(userVote || session.is_closed) && (
                     <div className="text-right">
-                      <div className="text-sm text-gray-600">
-                        {stats.voteCount} votes from {stats.uniqueVoters} voters
+                      <div
+                        className="text-sm text-gray-600 cursor-pointer"
+                        title={`Voters: ${stats.voterNames.join(', ')}`}
+                      >
+                        {stats.voteCount} votes
                       </div>
                     </div>
                   )}
