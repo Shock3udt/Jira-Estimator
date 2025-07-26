@@ -94,7 +94,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
         },
         body: JSON.stringify({
           session_id: sessionId,
-          creator_name: creatorName
+          creator_name: voterName
         }),
       })
 
@@ -162,7 +162,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
                 Created by {session.creator_name} • {issues.length} issues
               </CardDescription>
             </div>
-            {isCreator && !session.is_closed && (
+            {creatorName == voterName && !session.is_closed && (
               <Button onClick={closeSession} variant="destructive">
                 Close Session
               </Button>

@@ -294,6 +294,9 @@ def close_session():
         session_id = data.get('session_id')
         creator_name = data.get('creator_name')
 
+        # Log close session request
+        print(f"Close session request: {data}")
+
         if not all([session_id, creator_name]):
             return jsonify({'error': 'Missing required fields'}), 400
 
