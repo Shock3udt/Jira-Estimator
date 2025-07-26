@@ -10,8 +10,7 @@ const CreateSession = ({ onSessionCreated }) => {
   const [formData, setFormData] = useState({
     jira_url: '',
     jira_token: '',
-    jira_query: '',
-    creator_name: ''
+    jira_query: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -27,6 +26,7 @@ const CreateSession = ({ onSessionCreated }) => {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(formData),
       })
 
@@ -98,19 +98,14 @@ const CreateSession = ({ onSessionCreated }) => {
               required
               rows={3}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="creator_name">Your Name</Label>
-            <Input
-              id="creator_name"
-              name="creator_name"
-              type="text"
-              placeholder="Enter your name"
-              value={formData.creator_name}
-              onChange={handleChange}
-              required
-            />
+            <div className="text-xs text-gray-600">
+              <p>Examples:</p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>project = MYPROJECT AND status = "To Do"</li>
+                <li>assignee = currentUser() AND status != Done</li>
+                <li>project in (PROJ1, PROJ2) AND priority = High</li>
+              </ul>
+            </div>
           </div>
 
           {error && (

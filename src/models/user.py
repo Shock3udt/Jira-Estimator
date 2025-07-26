@@ -15,7 +15,7 @@ class User(db.Model):
     # Relationships
     owned_sessions = db.relationship('VotingSession', foreign_keys='VotingSession.creator_id', backref='creator', lazy='dynamic')
     votes = db.relationship('Vote', backref='user', lazy='dynamic')
-    invitations = db.relationship('SessionInvitation', foreign_keys='SessionInvitation.user_id', backref='user', lazy='dynamic')
+    invitations = db.relationship('SessionInvitation', backref='user', lazy='dynamic')
 
     def set_password(self, password):
         """Set password hash"""

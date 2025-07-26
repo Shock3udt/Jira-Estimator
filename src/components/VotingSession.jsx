@@ -5,13 +5,13 @@ import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
-import { ExternalLink, Users, Clock, CheckCircle } from 'lucide-react'
+import { ExternalLink, Users, Clock, CheckCircle, UserPlus } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const STORY_POINTS = ['1', '2', '3', '5', '8', '13', '21', '?']
 
-const VotingSession = ({ sessionId, isCreator, creatorName }) => {
+const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
   const [session, setSession] = useState(null)
   const [issues, setIssues] = useState([])
   const [votes, setVotes] = useState({})
@@ -19,6 +19,11 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [submittingVote, setSubmittingVote] = useState(false)
+  const [inviteUsername, setInviteUsername] = useState('')
+  const [inviteLoading, setInviteLoading] = useState(false)
+
+  // If user is authenticated, use their username
+  const effectiveVoterName = currentUser ? currentUser.username : voterName
 
   useEffect(() => {
     fetchSession()
@@ -28,7 +33,9 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
 
   const fetchSession = async () => {
     try {
-      const response = await fetch(`/api/session/${sessionId}`)
+      const response = await fetch(`/api/session/${sessionId}`, {
+        credentials: 'include'
+      })
       const data = await response.json()
 
       if (response.ok) {
@@ -47,24 +54,31 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
   }
 
   const submitVote = async (issueKey, estimation) => {
-    if (!voterName.trim()) {
+    if (!currentUser && !voterName.trim()) {
       alert('Please enter your name first')
       return
     }
 
     setSubmittingVote(true)
     try {
+      const voteData = {
+        session_id: sessionId,
+        issue_key: issueKey,
+        estimation: estimation
+      }
+
+      // For backward compatibility, include voter_name if not authenticated
+      if (!currentUser) {
+        voteData.voter_name = voterName.trim()
+      }
+
       const response = await fetch('/api/vote', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          session_id: sessionId,
-          issue_key: issueKey,
-          voter_name: voterName.trim(),
-          estimation: estimation
-        }),
+        credentials: 'include',
+        body: JSON.stringify(voteData),
       })
 
       const data = await response.json()
@@ -87,15 +101,22 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
     }
 
     try {
+      const closeData = {
+        session_id: sessionId
+      }
+
+      // For backward compatibility
+      if (!currentUser) {
+        closeData.creator_name = voterName
+      }
+
       const response = await fetch('/api/close-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          session_id: sessionId,
-          creator_name: voterName
-        }),
+        credentials: 'include',
+        body: JSON.stringify(closeData),
       })
 
       const data = await response.json()
@@ -107,6 +128,41 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
       }
     } catch (err) {
       alert('Network error: ' + err.message)
+    }
+  }
+
+  const inviteUser = async () => {
+    if (!inviteUsername.trim()) {
+      alert('Please enter a username')
+      return
+    }
+
+    setInviteLoading(true)
+    try {
+      const response = await fetch('/api/auth/invite-to-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          session_id: sessionId,
+          username: inviteUsername.trim()
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert(`User ${inviteUsername} invited successfully!`)
+        setInviteUsername('')
+      } else {
+        alert(data.error || 'Failed to invite user')
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message)
+    } finally {
+      setInviteLoading(false)
     }
   }
 
@@ -125,7 +181,19 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
 
   const getUserVote = (issueKey) => {
     const issueVotes = votes[issueKey] || []
-    return issueVotes.find(v => v.voter_name === voterName.trim())
+    return issueVotes.find(v => v.voter_name === effectiveVoterName)
+  }
+
+  const canUserCloseSession = () => {
+    if (!session) return false
+
+    // Check if current user can manage the session (from API response)
+    if (session.user_can_manage) return true
+
+    // Fallback for backward compatibility
+    if (!currentUser && session.creator_name === effectiveVoterName) return true
+
+    return false
   }
 
   if (loading) {
@@ -162,7 +230,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
                 Created by {session.creator_name} • {issues.length} issues
               </CardDescription>
             </div>
-            {creatorName == voterName && !session.is_closed && (
+            {canUserCloseSession() && !session.is_closed && (
               <Button onClick={closeSession} variant="destructive">
                 Close Session
               </Button>
@@ -186,19 +254,56 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
         </CardContent>
       </Card>
 
-      {/* Voter Name Input */}
+      {/* User Actions */}
       {!session.is_closed && (
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <Label htmlFor="voter_name">Your Name:</Label>
-              <Input
-                id="voter_name"
-                value={voterName}
-                onChange={(e) => setVoterName(e.target.value)}
-                placeholder="Enter your name to vote"
-                className="max-w-xs"
-              />
+            <div className="space-y-4">
+              {/* Voter Name Input (only for non-authenticated users) */}
+              {!currentUser && (
+                <div className="flex items-center gap-4">
+                  <Label htmlFor="voter_name">Your Name:</Label>
+                  <Input
+                    id="voter_name"
+                    value={voterName}
+                    onChange={(e) => setVoterName(e.target.value)}
+                    placeholder="Enter your name to vote"
+                    className="max-w-xs"
+                  />
+                </div>
+              )}
+
+              {/* Current User Display */}
+              {currentUser && (
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-gray-600">Voting as:</span>
+                  <Badge variant="secondary">{currentUser.username}</Badge>
+                </div>
+              )}
+
+              {/* Invite Users (only for authenticated session creators) */}
+              {currentUser && canUserCloseSession() && (
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium">Invite Team Members</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Input
+                      value={inviteUsername}
+                      onChange={(e) => setInviteUsername(e.target.value)}
+                      placeholder="Enter username to invite"
+                      className="max-w-xs"
+                    />
+                    <Button
+                      onClick={inviteUser}
+                      disabled={inviteLoading}
+                      size="sm"
+                      className="flex items-center gap-1"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      {inviteLoading ? 'Inviting...' : 'Invite'}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -290,7 +395,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName }) => {
                             variant={isSelected ? "default" : "outline"}
                             size="sm"
                             onClick={() => submitVote(issue.issue_key, point)}
-                            disabled={submittingVote || !voterName.trim()}
+                            disabled={submittingVote || (!currentUser && !voterName.trim())}
                             className={isSelected ? "bg-blue-600 hover:bg-blue-700" : ""}
                           >
                             {point}

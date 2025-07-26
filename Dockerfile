@@ -47,6 +47,11 @@ RUN mkdir -p src/routes
 # Move Python files to correct structure
 RUN mv user.py src/models/
 RUN mv voting_session.py src/models/
+
+# Copy additional model files
+COPY src/models/session_invitation.py src/models/session_invitation.py
+
+# Move routes
 RUN mv jira.py src/routes/
 
 # Create __init__.py files
@@ -59,6 +64,9 @@ COPY --from=frontend-builder /app/frontend/dist/ ./static/
 
 # Create user.py route file
 RUN echo "from flask import Blueprint\n\nuser_bp = Blueprint('user', __name__)" > src/routes/user.py
+
+# Create auth.py route file
+COPY src/routes/auth.py src/routes/auth.py
 
 # Expose port
 EXPOSE 5000

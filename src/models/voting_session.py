@@ -101,4 +101,3 @@ class Vote(db.Model):
             'estimation': self.estimation,
             'voted_at': self.voted_at.isoformat() if self.voted_at else None
         }
-

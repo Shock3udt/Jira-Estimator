@@ -1,8 +1,8 @@
 import uuid
 import time
 import requests
-from flask import Blueprint, request, jsonify
-from src.models.user import db
+from flask import Blueprint, request, jsonify, session
+from src.models.user import db, User
 from src.models.voting_session import VotingSession, JiraIssue, Vote
 
 jira_bp = Blueprint('jira', __name__)
@@ -165,9 +165,19 @@ def create_session():
         jira_url = data.get('jira_url')
         jira_token = data.get('jira_token')
         jira_query = data.get('jira_query')
-        creator_name = data.get('creator_name')
+        creator_name = data.get('creator_name')  # For backward compatibility
 
-        if not all([jira_url, jira_token, jira_query, creator_name]):
+        # Check for authenticated user
+        user_id = session.get('user_id')
+        user = None
+        if user_id:
+            user = User.query.get(user_id)
+
+        # Require either authenticated user or creator_name
+        if not user and not creator_name:
+            return jsonify({'error': 'Authentication required or creator name must be provided'}), 400
+
+        if not all([jira_url, jira_token, jira_query]):
             return jsonify({'error': 'Missing required fields'}), 400
 
         # Test Jira connection
@@ -180,15 +190,16 @@ def create_session():
 
         # Create session
         session_id = str(uuid.uuid4())
-        session = VotingSession(
+        voting_session = VotingSession(
             session_id=session_id,
             jira_url=jira_url,
             jira_token=jira_token,
             jira_query=jira_query,
-            creator_name=creator_name
+            creator_id=user.id if user else None,
+            creator_name=creator_name if not user else None
         )
 
-        db.session.add(session)
+        db.session.add(voting_session)
 
         # Store issues
         for issue in issues:
@@ -216,8 +227,8 @@ def create_session():
 @jira_bp.route('/session/<session_id>', methods=['GET'])
 def get_session(session_id):
     try:
-        session = VotingSession.query.filter_by(session_id=session_id).first()
-        if not session:
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
             return jsonify({'error': 'Session not found'}), 404
 
         issues = JiraIssue.query.filter_by(session_id=session_id).all()
@@ -230,8 +241,17 @@ def get_session(session_id):
                 votes_by_issue[vote.issue_key] = []
             votes_by_issue[vote.issue_key].append(vote.to_dict())
 
+        # Check if current user can manage session
+        user_id = session.get('user_id')
+        user_can_manage = False
+        if user_id and voting_session.creator_id:
+            user_can_manage = voting_session.creator_id == user_id
+
+        session_dict = voting_session.to_dict()
+        session_dict['user_can_manage'] = user_can_manage
+
         return jsonify({
-            'session': session.to_dict(),
+            'session': session_dict,
             'issues': [issue.to_dict() for issue in issues],
             'votes': votes_by_issue
         }), 200
@@ -245,26 +265,45 @@ def submit_vote():
         data = request.get_json()
         session_id = data.get('session_id')
         issue_key = data.get('issue_key')
-        voter_name = data.get('voter_name')
+        voter_name = data.get('voter_name')  # For backward compatibility
         estimation = data.get('estimation')
 
-        if not all([session_id, issue_key, voter_name, estimation]):
+        # Check for authenticated user
+        user_id = session.get('user_id')
+        user = None
+        if user_id:
+            user = User.query.get(user_id)
+
+        # Require either authenticated user or voter_name
+        if not user and not voter_name:
+            return jsonify({'error': 'Authentication required or voter name must be provided'}), 400
+
+        if not all([session_id, issue_key, estimation]):
             return jsonify({'error': 'Missing required fields'}), 400
 
         # Check if session exists and is not closed
-        session = VotingSession.query.filter_by(session_id=session_id).first()
-        if not session:
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
             return jsonify({'error': 'Session not found'}), 404
 
-        if session.is_closed:
+        if voting_session.is_closed:
             return jsonify({'error': 'Voting session is closed'}), 400
 
         # Check if user already voted for this issue
-        existing_vote = Vote.query.filter_by(
-            session_id=session_id,
-            issue_key=issue_key,
-            voter_name=voter_name
-        ).first()
+        existing_vote = None
+        if user:
+            existing_vote = Vote.query.filter_by(
+                session_id=session_id,
+                issue_key=issue_key,
+                user_id=user.id
+            ).first()
+        else:
+            existing_vote = Vote.query.filter_by(
+                session_id=session_id,
+                issue_key=issue_key,
+                voter_name=voter_name,
+                user_id=None
+            ).first()
 
         if existing_vote:
             # Update existing vote
@@ -274,7 +313,8 @@ def submit_vote():
             vote = Vote(
                 session_id=session_id,
                 issue_key=issue_key,
-                voter_name=voter_name,
+                user_id=user.id if user else None,
+                voter_name=voter_name if not user else None,
                 estimation=estimation
             )
             db.session.add(vote)
@@ -292,23 +332,30 @@ def close_session():
     try:
         data = request.get_json()
         session_id = data.get('session_id')
-        creator_name = data.get('creator_name')
+        creator_name = data.get('creator_name')  # For backward compatibility
 
-        # Log close session request
-        print(f"Close session request: {data}")
+        # Check for authenticated user
+        user_id = session.get('user_id')
 
-        if not all([session_id, creator_name]):
-            return jsonify({'error': 'Missing required fields'}), 400
+        if not session_id:
+            return jsonify({'error': 'Session ID is required'}), 400
 
-        session = VotingSession.query.filter_by(session_id=session_id).first()
-        if not session:
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
             return jsonify({'error': 'Session not found'}), 404
 
-        if session.creator_name != creator_name:
+        # Check if user can close the session
+        can_close = False
+        if user_id and voting_session.creator_id:
+            can_close = voting_session.creator_id == user_id
+        elif creator_name and voting_session.creator_name:
+            can_close = voting_session.creator_name == creator_name
+
+        if not can_close:
             return jsonify({'error': 'Only the session creator can close the session'}), 403
 
         try:
-            update_results = calculate_and_update_estimations(session)
+            update_results = calculate_and_update_estimations(voting_session)
 
             # Check for failures
             failed_updates = [r for r in update_results if r['status'] in ['failed', 'error']]
@@ -318,7 +365,7 @@ def close_session():
                     'details': failed_updates
                 }), 500
 
-            session.is_closed = True
+            voting_session.is_closed = True
             db.session.commit()
 
             return jsonify({

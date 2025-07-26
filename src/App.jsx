@@ -1,30 +1,82 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import Login from './components/Login.jsx'
+import Register from './components/Register.jsx'
+import UserDashboard from './components/UserDashboard.jsx'
 import CreateSession from './components/CreateSession.jsx'
 import JoinSession from './components/JoinSession.jsx'
 import VotingSession from './components/VotingSession.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Vote, Users, ArrowLeft } from 'lucide-react'
+import { Vote, Users, ArrowLeft, Loader2 } from 'lucide-react'
 import './App.css'
 
 function App() {
-  const [currentView, setCurrentView] = useState('home') // 'home', 'create', 'join', 'session'
+  const [currentView, setCurrentView] = useState('loading') // 'loading', 'login', 'register', 'dashboard', 'create', 'join', 'session'
+  const [user, setUser] = useState(null)
   const [sessionData, setSessionData] = useState({
     sessionId: '',
     isCreator: false,
     creatorName: ''
   })
 
+  useEffect(() => {
+    checkAuthStatus()
+  }, [])
+
+  const checkAuthStatus = async () => {
+    try {
+      const response = await fetch('/api/auth/current-user', {
+        credentials: 'include'
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setUser(data.user)
+        setCurrentView('dashboard')
+      } else {
+        setCurrentView('login')
+      }
+    } catch (err) {
+      console.error('Auth check failed:', err)
+      setCurrentView('login')
+    }
+  }
+
+  const handleLogin = (userData) => {
+    setUser(userData)
+    setCurrentView('dashboard')
+  }
+
+  const handleRegister = (userData) => {
+    setUser(userData)
+    setCurrentView('dashboard')
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      })
+    } catch (err) {
+      console.error('Logout failed:', err)
+    } finally {
+      setUser(null)
+      setCurrentView('login')
+      setSessionData({ sessionId: '', isCreator: false, creatorName: '' })
+    }
+  }
+
   const handleSessionCreated = (sessionId) => {
     setSessionData({
       sessionId,
       isCreator: true,
-      creatorName: '' // Will be set from the form
+      creatorName: user?.username || ''
     })
     setCurrentView('session')
   }
 
-  const handleSessionJoined = (sessionId, isCreator, creatorName) => {
+  const handleSessionJoined = (sessionId, isCreator = false, creatorName = '') => {
     setSessionData({
       sessionId,
       isCreator,
@@ -33,23 +85,59 @@ function App() {
     setCurrentView('session')
   }
 
-  const goHome = () => {
-    setCurrentView('home')
+  const goToDashboard = () => {
+    setCurrentView('dashboard')
     setSessionData({ sessionId: '', isCreator: false, creatorName: '' })
+  }
+
+  const goToLogin = () => {
+    setCurrentView('login')
+  }
+
+  const goToRegister = () => {
+    setCurrentView('register')
+  }
+
+  // Show loading screen while checking authentication
+  if (currentView === 'loading') {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   const renderContent = () => {
     switch (currentView) {
+      case 'login':
+        return <Login onLogin={handleLogin} onSwitchToRegister={goToRegister} />
+
+      case 'register':
+        return <Register onRegister={handleRegister} onSwitchToLogin={goToLogin} />
+
+      case 'dashboard':
+        return (
+          <UserDashboard
+            user={user}
+            onLogout={handleLogout}
+            onJoinSession={(sessionId) => handleSessionJoined(sessionId, false, '')}
+            onCreateSession={() => setCurrentView('create')}
+          />
+        )
+
       case 'create':
         return (
           <div className="space-y-4">
             <Button
               variant="ghost"
-              onClick={goHome}
+              onClick={goToDashboard}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Home
+              Back to Dashboard
             </Button>
             <CreateSession onSessionCreated={handleSessionCreated} />
           </div>
@@ -60,11 +148,11 @@ function App() {
           <div className="space-y-4">
             <Button
               variant="ghost"
-              onClick={goHome}
+              onClick={goToDashboard}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Home
+              Back to Dashboard
             </Button>
             <JoinSession onSessionJoined={handleSessionJoined} />
           </div>
@@ -76,11 +164,11 @@ function App() {
             <div className="flex justify-between items-center">
               <Button
                 variant="ghost"
-                onClick={goHome}
+                onClick={goToDashboard}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Leave Session
+                Back to Dashboard
               </Button>
               <div className="text-sm text-gray-600">
                 Session ID: <code className="bg-gray-100 px-2 py-1 rounded">{sessionData.sessionId}</code>
@@ -90,6 +178,7 @@ function App() {
               sessionId={sessionData.sessionId}
               isCreator={sessionData.isCreator}
               creatorName={sessionData.creatorName}
+              currentUser={user}
             />
           </div>
         )
@@ -113,46 +202,23 @@ function App() {
               </p>
             </div>
 
-            {/* Action Cards */}
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setCurrentView('create')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Vote className="w-5 h-5 text-blue-600" />
-                    Create Session
-                  </CardTitle>
-                  <CardDescription>
-                    Start a new estimation session by connecting to your Jira instance
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Connect to your self-hosted Jira</li>
-                    <li>• Define JQL query for issues</li>
-                    <li>• Manage voting session</li>
-                  </ul>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setCurrentView('join')}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="w-5 h-5 text-green-600" />
-                    Join Session
-                  </CardTitle>
-                  <CardDescription>
-                    Join an existing estimation session using a session ID
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    <li>• Enter session ID</li>
-                    <li>• Vote on Jira issues</li>
-                    <li>• See real-time results</li>
-                  </ul>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Authentication required message */}
+            <Card className="max-w-md mx-auto">
+              <CardHeader className="text-center">
+                <CardTitle>Authentication Required</CardTitle>
+                <CardDescription>
+                  Please sign in to access the Jira Estimation Tool
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex gap-2">
+                <Button onClick={goToLogin} className="flex-1">
+                  Sign In
+                </Button>
+                <Button onClick={goToRegister} variant="outline" className="flex-1">
+                  Sign Up
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Features */}
             <div className="bg-gray-50 rounded-lg p-8 max-w-4xl mx-auto">
@@ -182,9 +248,9 @@ function App() {
                   <div className="bg-purple-100 p-3 rounded-full w-fit mx-auto mb-3">
                     <ArrowLeft className="w-6 h-6 text-purple-600" />
                   </div>
-                  <h3 className="font-medium mb-2">Jira Integration</h3>
+                  <h3 className="font-medium mb-2">User Management</h3>
                   <p className="text-sm text-gray-600">
-                    Direct connection to your Jira instance
+                    Track your sessions and invitations
                   </p>
                 </div>
               </div>
