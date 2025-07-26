@@ -50,6 +50,7 @@ RUN mv voting_session.py src/models/
 
 # Copy additional model files
 COPY src/models/session_invitation.py src/models/session_invitation.py
+COPY src/models/team.py src/models/team.py
 
 # Move routes
 RUN mv jira.py src/routes/
@@ -67,6 +68,9 @@ RUN echo "from flask import Blueprint\n\nuser_bp = Blueprint('user', __name__)" 
 
 # Create auth.py route file
 COPY src/routes/auth.py src/routes/auth.py
+
+# Copy teams.py route file
+COPY src/routes/teams.py src/routes/teams.py
 
 # Expose port
 EXPOSE 5000

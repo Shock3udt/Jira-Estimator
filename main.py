@@ -22,6 +22,7 @@ print("Importing other models...")
 try:
     from src.models.session_invitation import SessionInvitation
     from src.models.voting_session import VotingSession, JiraIssue, Vote
+    from src.models.team import Team, TeamMembership
     print("✅ Other models imported successfully")
 except Exception as e:
     print(f"❌ Error importing other models: {e}")
@@ -32,6 +33,7 @@ except Exception as e:
 from src.routes.user import user_bp
 from src.routes.jira import jira_bp
 from src.routes.auth import auth_bp
+from src.routes.teams import teams_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
@@ -47,6 +49,7 @@ CORS(app, supports_credentials=True)
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(jira_bp, url_prefix='/api')
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
+app.register_blueprint(teams_bp, url_prefix='/api/teams')
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"

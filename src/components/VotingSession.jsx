@@ -21,15 +21,40 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
   const [submittingVote, setSubmittingVote] = useState(false)
   const [inviteUsername, setInviteUsername] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [userTeams, setUserTeams] = useState([])
+  const [selectedTeam, setSelectedTeam] = useState('')
+  const [teamInviteLoading, setTeamInviteLoading] = useState(false)
 
   // If user is authenticated, use their username
   const effectiveVoterName = currentUser ? currentUser.username : voterName
 
   useEffect(() => {
     fetchSession()
+    if (currentUser) {
+      fetchUserTeams()
+    }
     const interval = setInterval(fetchSession, 5000) // Poll every 5 seconds
     return () => clearInterval(interval)
   }, [sessionId])
+
+  const fetchUserTeams = async () => {
+    if (!currentUser) return
+
+    try {
+      const response = await fetch('/api/teams/my-teams', {
+        credentials: 'include'
+      })
+      const data = await response.json()
+
+      if (response.ok) {
+        // Combine owned and member teams
+        const allTeams = [...data.owned_teams, ...data.member_teams]
+        setUserTeams(allTeams)
+      }
+    } catch (err) {
+      console.error('Failed to fetch teams:', err)
+    }
+  }
 
   const fetchSession = async () => {
     try {
@@ -166,6 +191,41 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
     }
   }
 
+  const inviteTeam = async () => {
+    if (!selectedTeam) {
+      alert('Please select a team')
+      return
+    }
+
+    setTeamInviteLoading(true)
+    try {
+      const response = await fetch('/api/auth/invite-team-to-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          session_id: sessionId,
+          team_id: parseInt(selectedTeam)
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert(`Team "${data.team_name}" invited successfully! ${data.invited_count} members invited, ${data.already_invited_count} already invited.`)
+        setSelectedTeam('')
+      } else {
+        alert(data.error || 'Failed to invite team')
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message)
+    } finally {
+      setTeamInviteLoading(false)
+    }
+  }
+
   const getVoteStats = (issueKey) => {
     const issueVotes = votes[issueKey] || []
     const voteCount = issueVotes.length
@@ -283,25 +343,56 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
 
               {/* Invite Users (only for authenticated session creators) */}
               {currentUser && canUserCloseSession() && (
-                <div className="border-t pt-4">
-                  <Label className="text-sm font-medium">Invite Team Members</Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Input
-                      value={inviteUsername}
-                      onChange={(e) => setInviteUsername(e.target.value)}
-                      placeholder="Enter username to invite"
-                      className="max-w-xs"
-                    />
-                    <Button
-                      onClick={inviteUser}
-                      disabled={inviteLoading}
-                      size="sm"
-                      className="flex items-center gap-1"
-                    >
-                      <UserPlus className="w-3 h-3" />
-                      {inviteLoading ? 'Inviting...' : 'Invite'}
-                    </Button>
+                <div className="border-t pt-4 space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium">Invite Individual User</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Input
+                        value={inviteUsername}
+                        onChange={(e) => setInviteUsername(e.target.value)}
+                        placeholder="Enter username to invite"
+                        className="max-w-xs"
+                      />
+                      <Button
+                        onClick={inviteUser}
+                        disabled={inviteLoading}
+                        size="sm"
+                        className="flex items-center gap-1"
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        {inviteLoading ? 'Inviting...' : 'Invite'}
+                      </Button>
+                    </div>
                   </div>
+
+                  {userTeams.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium">Invite Entire Team</Label>
+                      <div className="flex items-center gap-2 mt-2">
+                        <select
+                          value={selectedTeam}
+                          onChange={(e) => setSelectedTeam(e.target.value)}
+                          className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                          <option value="">Select a team</option>
+                          {userTeams.map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {team.name} ({team.member_count} members)
+                            </option>
+                          ))}
+                        </select>
+                        <Button
+                          onClick={inviteTeam}
+                          disabled={teamInviteLoading || !selectedTeam}
+                          size="sm"
+                          className="flex items-center gap-1"
+                        >
+                          <Users className="w-3 h-3" />
+                          {teamInviteLoading ? 'Inviting...' : 'Invite Team'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

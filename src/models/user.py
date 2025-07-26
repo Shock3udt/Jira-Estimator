@@ -55,6 +55,31 @@ class User(db.Model):
             VotingSession.is_closed == True
         ).all()
 
+    def get_owned_teams(self):
+        """Get teams created by this user"""
+        # Import here to avoid circular import
+        from src.models.team import Team
+        return Team.query.filter_by(creator_id=self.id, is_active=True).all()
+
+    def get_member_teams(self):
+        """Get teams where user is a member"""
+        # Import here to avoid circular import
+        from src.models.team import Team, TeamMembership
+        team_ids = [m.team_id for m in self.team_memberships if m.is_active]
+        return Team.query.filter(Team.id.in_(team_ids), Team.is_active == True).all()
+
+    def get_all_teams(self):
+        """Get all teams (owned + member of)"""
+        owned_teams = self.get_owned_teams()
+        member_teams = self.get_member_teams()
+
+        # Combine and deduplicate
+        all_teams = {}
+        for team in owned_teams + member_teams:
+            all_teams[team.id] = team
+
+        return list(all_teams.values())
+
     def __repr__(self):
         return f'<User {self.username}>'
 

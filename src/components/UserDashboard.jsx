@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
+import TeamManagement from './TeamManagement.jsx'
 import {
   Vote,
   Users,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react'
 
 const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
+  const [activeTab, setActiveTab] = useState('sessions') // 'sessions' or 'teams'
   const [sessions, setSessions] = useState({
     owned_sessions: [],
     invited_sessions: [],
@@ -199,32 +201,58 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={onCreateSession}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Vote className="w-5 h-5 text-blue-600" />
-              Create New Session
-            </CardTitle>
-            <CardDescription>
-              Start a new estimation session with your Jira issues
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      {/* Tab Navigation */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+            <Button
+              variant={activeTab === 'sessions' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('sessions')}
+              className="flex-1"
+            >
+              <Vote className="w-4 h-4 mr-2" />
+              Sessions
+            </Button>
+            <Button
+              variant={activeTab === 'teams' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('teams')}
+              className="flex-1"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Teams
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {}}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-green-600" />
-              Join by Session ID
-            </CardTitle>
-            <CardDescription>
-              Join an existing session using its ID
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
+      {activeTab === 'sessions' && (
+        <>
+          {/* Quick Actions */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={onCreateSession}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Vote className="w-5 h-5 text-blue-600" />
+                  Create New Session
+                </CardTitle>
+                <CardDescription>
+                  Start a new estimation session with your Jira issues
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {}}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-green-600" />
+                  Join by Session ID
+                </CardTitle>
+                <CardDescription>
+                  Join an existing session using its ID
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </div>
 
       {/* Owned Sessions */}
       <div className="space-y-4">
@@ -298,6 +326,12 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
           </div>
         )}
       </div>
+        </>
+      )}
+
+      {activeTab === 'teams' && (
+        <TeamManagement user={user} />
+      )}
     </div>
   )
 }

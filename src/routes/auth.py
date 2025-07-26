@@ -220,6 +220,88 @@ def invite_to_session():
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@auth_bp.route('/invite-team-to-session', methods=['POST'])
+def invite_team_to_session():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        team_id = data.get('team_id')
+
+        if not session_id or not team_id:
+            return jsonify({'error': 'Session ID and team ID are required'}), 400
+
+        # Import here to avoid circular import
+        from src.models.voting_session import VotingSession
+        from src.models.team import Team
+
+        # Check if session exists and user owns it
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        if voting_session.creator_id != user_id:
+            return jsonify({'error': 'Only session creator can invite teams'}), 403
+
+        if voting_session.is_closed:
+            return jsonify({'error': 'Cannot invite to closed session'}), 400
+
+        # Check if team exists and user has access
+        team = Team.query.get(team_id)
+        if not team or not team.is_active:
+            return jsonify({'error': 'Team not found'}), 404
+
+        # User must be either team creator or team member
+        if team.creator_id != user_id and not team.is_member(user_id):
+            return jsonify({'error': 'Access denied to this team'}), 403
+
+        # Get all team members
+        team_members = team.get_members()
+        invited_count = 0
+        already_invited_count = 0
+        errors = []
+
+        for member in team_members:
+            # Skip if member is already invited
+            existing_invitation = SessionInvitation.query.filter_by(
+                session_id=session_id,
+                user_id=member.id
+            ).first()
+
+            if existing_invitation:
+                already_invited_count += 1
+                continue
+
+            # Create invitation for this member
+            try:
+                invitation = SessionInvitation(
+                    session_id=session_id,
+                    user_id=member.id,
+                    invited_by_id=user_id
+                )
+                db.session.add(invitation)
+                invited_count += 1
+            except Exception as e:
+                errors.append(f"Failed to invite {member.username}: {str(e)}")
+
+        db.session.commit()
+
+        return jsonify({
+            'message': f'Team invitation completed',
+            'team_name': team.name,
+            'invited_count': invited_count,
+            'already_invited_count': already_invited_count,
+            'total_members': len(team_members),
+            'errors': errors
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @auth_bp.route('/respond-to-invitation', methods=['POST'])
 def respond_to_invitation():
     user_id = session.get('user_id')
