@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0] - 2024-08-01
+
+### Added
+- `NGINX_DEPLOYMENT.md`: A detailed guide on how to deploy the application with a local Nginx reverse proxy.
+- Instructions include prerequisites, step-by-step configuration for Nginx, and commands for different operating systems.
+
+## [1.0.0] - 2024-07-20
+
+### Added
+- Initial release of the Jira Estimation Tool.
+- Features include session creation, voting, and token-based authentication.
+- Docker-based deployment for easy setup.
+
 All notable changes to the Jira Estimation Tool will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
