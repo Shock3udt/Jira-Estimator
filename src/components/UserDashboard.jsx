@@ -75,9 +75,32 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
                     Closed
                   </Badge>
                 )}
+                {/* Voting progress for owned sessions */}
+                {isOwned && session.voting_stats && (
+                  <Badge
+                    variant="outline"
+                    className={`${
+                      session.voting_stats.voters_count === session.voting_stats.total_invited
+                        ? 'bg-green-50 text-green-700 border-green-200'
+                        : 'bg-blue-50 text-blue-700 border-blue-200'
+                    }`}
+                  >
+                    <Users className="w-3 h-3 mr-1" />
+                    {session.voting_stats.voters_count}/{session.voting_stats.total_invited} voted
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 Created by {session.creator_name} • {new Date(session.created_at).toLocaleDateString()}
+                {/* Additional voting details for owned sessions */}
+                {isOwned && session.voting_stats && (
+                  <>
+                    {' • '}
+                    {session.voting_stats.total_invitations > 0
+                      ? `${session.voting_stats.total_invitations} invited`
+                      : 'No invitations sent'}
+                  </>
+                )}
               </CardDescription>
             </div>
           </div>

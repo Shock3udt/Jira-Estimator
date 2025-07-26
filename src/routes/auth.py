@@ -112,12 +112,46 @@ def user_sessions():
         return jsonify({'error': 'User not found'}), 404
 
     try:
-        owned_sessions = [s.to_dict() for s in user.get_owned_sessions()]
+        # Import here to avoid circular import
+        from src.models.voting_session import VotingSession, Vote
+
+        # Get basic session data
+        owned_sessions_data = []
+        for session_obj in user.get_owned_sessions():
+            session_dict = session_obj.to_dict()
+
+            # Add voting statistics for owned sessions
+            # Count total people who can vote (creator + invited users)
+            total_invitations = SessionInvitation.query.filter_by(session_id=session_obj.session_id).count()
+            total_invited = total_invitations + 1  # +1 for the creator
+
+            # Count unique voters who have actually voted
+            votes = Vote.query.filter_by(session_id=session_obj.session_id).all()
+            unique_voters = set()
+            for vote in votes:
+                if vote.user_id:
+                    # Authenticated voter
+                    unique_voters.add(f"user_{vote.user_id}")
+                elif vote.voter_name:
+                    # Non-authenticated voter
+                    unique_voters.add(f"name_{vote.voter_name}")
+
+            voters_count = len(unique_voters)
+
+            # Add voting statistics to session data
+            session_dict['voting_stats'] = {
+                'voters_count': voters_count,
+                'total_invited': total_invited,
+                'total_invitations': total_invitations
+            }
+
+            owned_sessions_data.append(session_dict)
+
         invited_sessions = [s.to_dict() for s in user.get_invited_sessions()]
         participated_sessions = [s.to_dict() for s in user.get_participated_sessions()]
 
         return jsonify({
-            'owned_sessions': owned_sessions,
+            'owned_sessions': owned_sessions_data,
             'invited_sessions': invited_sessions,
             'participated_sessions': participated_sessions
         }), 200
