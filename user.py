@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import base64
 
 db = SQLAlchemy()
 
@@ -11,6 +12,10 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
+
+    # Jira settings
+    jira_url = db.Column(db.String(500), nullable=True)
+    jira_token_encrypted = db.Column(db.Text, nullable=True)  # Base64 encoded for basic obfuscation
 
     # Relationships
     owned_sessions = db.relationship('VotingSession', foreign_keys='VotingSession.creator_id', backref='creator', lazy='dynamic')
@@ -80,14 +85,49 @@ class User(db.Model):
 
         return list(all_teams.values())
 
+    def set_jira_token(self, token):
+        """Set encrypted Jira token (base64 encoded for basic obfuscation)"""
+        if token:
+            # Simple base64 encoding - not cryptographically secure but better than plain text
+            encoded_token = base64.b64encode(token.encode('utf-8')).decode('utf-8')
+            self.jira_token_encrypted = encoded_token
+        else:
+            self.jira_token_encrypted = None
+
+    def get_jira_token(self):
+        """Get decrypted Jira token"""
+        if self.jira_token_encrypted:
+            try:
+                return base64.b64decode(self.jira_token_encrypted.encode('utf-8')).decode('utf-8')
+            except Exception:
+                return None
+        return None
+
+    def has_jira_settings(self):
+        """Check if user has saved Jira settings"""
+        return bool(self.jira_url and self.jira_token_encrypted)
+
+    def clear_jira_settings(self):
+        """Clear saved Jira settings"""
+        self.jira_url = None
+        self.jira_token_encrypted = None
+
     def __repr__(self):
         return f'<User {self.username}>'
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_jira_settings=False):
+        result = {
             'id': self.id,
             'username': self.username,
             'email': self.email,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'is_active': self.is_active
+            'is_active': self.is_active,
+            'has_jira_settings': self.has_jira_settings()
         }
+
+        if include_jira_settings:
+            result['jira_url'] = self.jira_url
+            # Never include the actual token in the response for security
+            result['has_jira_token'] = bool(self.jira_token_encrypted)
+
+        return result

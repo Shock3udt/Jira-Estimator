@@ -166,6 +166,8 @@ def create_session():
         jira_token = data.get('jira_token')
         jira_query = data.get('jira_query')
         creator_name = data.get('creator_name')  # For backward compatibility
+        use_saved_credentials = data.get('use_saved_credentials', False)
+        test_connection = data.get('test_connection', False)  # New flag for testing
 
         # Check for authenticated user
         user_id = session.get('user_id')
@@ -173,9 +175,16 @@ def create_session():
         if user_id:
             user = User.query.get(user_id)
 
-        # Require either authenticated user or creator_name
-        if not user and not creator_name:
+        # Require either authenticated user or creator_name (not needed for test connections)
+        if not user and not creator_name and not test_connection:
             return jsonify({'error': 'Authentication required or creator name must be provided'}), 400
+
+        # Use saved credentials if requested and available
+        if user and use_saved_credentials and user.has_jira_settings():
+            if not jira_url:
+                jira_url = user.jira_url
+            if not jira_token:
+                jira_token = user.get_jira_token()
 
         if not all([jira_url, jira_token, jira_query]):
             return jsonify({'error': 'Missing required fields'}), 400
@@ -188,7 +197,14 @@ def create_session():
         except Exception as e:
             return jsonify({'error': f'Failed to connect to Jira: {str(e)}'}), 400
 
-        # Create session
+        # If this is just a test connection, return success without creating session
+        if test_connection:
+            return jsonify({
+                'message': 'Connection test successful',
+                'issues_count': len(issues)
+            }), 200
+
+        # Create session (only if not testing)
         session_id = str(uuid.uuid4())
         voting_session = VotingSession(
             session_id=session_id,

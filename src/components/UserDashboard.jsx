@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
 import TeamManagement from './TeamManagement.jsx'
+import JiraSettings from './JiraSettings.jsx'
 import {
   Vote,
   Users,
@@ -14,11 +15,12 @@ import {
   Crown,
   UserPlus,
   ExternalLink,
-  LogOut
+  LogOut,
+  Settings
 } from 'lucide-react'
 
 const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
-  const [activeTab, setActiveTab] = useState('sessions') // 'sessions' or 'teams'
+  const [activeTab, setActiveTab] = useState('sessions') // 'sessions', 'teams', or 'jira-settings'
   const [sessions, setSessions] = useState({
     owned_sessions: [],
     invited_sessions: [],
@@ -221,6 +223,14 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
               <Users className="w-4 h-4 mr-2" />
               Teams
             </Button>
+            <Button
+              variant={activeTab === 'jira-settings' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('jira-settings')}
+              className="flex-1"
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Jira Settings
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -331,6 +341,10 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
 
       {activeTab === 'teams' && (
         <TeamManagement user={user} />
+      )}
+
+      {activeTab === 'jira-settings' && (
+        <JiraSettings user={user} />
       )}
     </div>
   )

@@ -337,3 +337,82 @@ def respond_to_invitation():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@auth_bp.route('/jira-settings', methods=['GET'])
+def get_jira_settings():
+    """Get user's saved Jira settings"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        return jsonify({
+            'jira_url': user.jira_url,
+            'has_jira_token': bool(user.jira_token_encrypted)
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@auth_bp.route('/jira-settings', methods=['POST'])
+def save_jira_settings():
+    """Save user's Jira settings"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    try:
+        data = request.get_json()
+        jira_url = data.get('jira_url', '').strip()
+        jira_token = data.get('jira_token', '').strip()
+
+        # Validate URL
+        if jira_url and not jira_url.startswith(('http://', 'https://')):
+            return jsonify({'error': 'Invalid Jira URL format'}), 400
+
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        # Update Jira settings
+        user.jira_url = jira_url if jira_url else None
+        user.set_jira_token(jira_token if jira_token else None)
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Jira settings saved successfully',
+            'jira_url': user.jira_url,
+            'has_jira_token': bool(user.jira_token_encrypted)
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@auth_bp.route('/jira-settings', methods=['DELETE'])
+def clear_jira_settings():
+    """Clear user's saved Jira settings"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    try:
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        user.clear_jira_settings()
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Jira settings cleared successfully'
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
