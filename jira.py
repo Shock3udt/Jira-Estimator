@@ -425,3 +425,75 @@ def fetch_jira_issues(jira_url, token, jql_query):
     data = response.json()
     return data.get('issues', [])
 
+@jira_bp.route('/delete-session', methods=['DELETE'])
+def delete_session():
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        creator_name = data.get('creator_name')  # For backward compatibility
+
+        # Check for authenticated user
+        user_id = session.get('user_id')
+
+        if not session_id:
+            return jsonify({'error': 'Session ID is required'}), 400
+
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        # Check if user can manage the session
+        can_manage = voting_session.can_be_managed_by_user(user_id=user_id, user_name=creator_name)
+        if not can_manage:
+            return jsonify({'error': 'Only the session creator can delete the session'}), 403
+
+        # Delete the session
+        voting_session.delete_session()
+
+        return jsonify({'message': 'Session deleted successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@jira_bp.route('/remove-issue', methods=['DELETE'])
+def remove_issue():
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        issue_key = data.get('issue_key')
+        creator_name = data.get('creator_name')  # For backward compatibility
+
+        # Check for authenticated user
+        user_id = session.get('user_id')
+
+        if not all([session_id, issue_key]):
+            return jsonify({'error': 'Session ID and Issue Key are required'}), 400
+
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        # Check if session is closed
+        if voting_session.is_closed:
+            return jsonify({'error': 'Cannot remove issues from a closed session'}), 400
+
+        # Check if user can manage the session
+        can_manage = voting_session.can_be_managed_by_user(user_id=user_id, user_name=creator_name)
+        if not can_manage:
+            return jsonify({'error': 'Only the session creator can remove issues'}), 403
+
+        # Check if issue exists in the session
+        issue = JiraIssue.query.filter_by(session_id=session_id, issue_key=issue_key).first()
+        if not issue:
+            return jsonify({'error': 'Issue not found in session'}), 404
+
+        # Remove the issue
+        voting_session.remove_issue(issue_key)
+
+        return jsonify({'message': 'Issue removed successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+

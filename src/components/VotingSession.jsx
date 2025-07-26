@@ -156,6 +156,81 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
     }
   }
 
+  const deleteSession = async () => {
+    if (!confirm('Are you sure you want to delete this voting session? This action cannot be undone and will remove all votes and data.')) {
+      return
+    }
+
+    try {
+      const deleteData = {
+        session_id: sessionId
+      }
+
+      // For backward compatibility
+      if (!currentUser) {
+        deleteData.creator_name = voterName
+      }
+
+      const response = await fetch('/api/delete-session', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(deleteData),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert('Session deleted successfully')
+        // Redirect to dashboard or home page
+        window.location.href = '/'
+      } else {
+        alert(data.error || 'Failed to delete session')
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message)
+    }
+  }
+
+  const removeIssue = async (issueKey) => {
+    if (!confirm(`Are you sure you want to remove issue ${issueKey} from this session? This will delete all votes for this issue.`)) {
+      return
+    }
+
+    try {
+      const removeData = {
+        session_id: sessionId,
+        issue_key: issueKey
+      }
+
+      // For backward compatibility
+      if (!currentUser) {
+        removeData.creator_name = voterName
+      }
+
+      const response = await fetch('/api/remove-issue', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(removeData),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        fetchSession() // Refresh data
+      } else {
+        alert(data.error || 'Failed to remove issue')
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message)
+    }
+  }
+
   const inviteUser = async () => {
     if (!inviteUsername.trim()) {
       alert('Please enter a username')
@@ -290,10 +365,17 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
                 Created by {session.creator_name} • {issues.length} issues
               </CardDescription>
             </div>
-            {canUserCloseSession() && !session.is_closed && (
-              <Button onClick={closeSession} variant="destructive">
-                Close Session
-              </Button>
+            {canUserCloseSession() && (
+              <div className="flex gap-2">
+                {!session.is_closed && (
+                  <Button onClick={closeSession} variant="destructive">
+                    Close Session
+                  </Button>
+                )}
+                <Button onClick={deleteSession} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                  Delete Session
+                </Button>
+              </div>
             )}
           </div>
         </CardHeader>
@@ -426,16 +508,28 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
                       {issue.issue_title}
                     </CardDescription>
                   </div>
-                  {(userVote || session.is_closed) && (
-                    <div className="text-right">
-                      <div
-                        className="text-sm text-gray-600 cursor-pointer"
-                        title={`Voters: ${stats.voterNames.join(', ')}`}
-                      >
-                        {stats.voteCount} votes
+                  <div className="flex items-center gap-3">
+                    {(userVote || session.is_closed) && (
+                      <div className="text-right">
+                        <div
+                          className="text-sm text-gray-600 cursor-pointer"
+                          title={`Voters: ${stats.voterNames.join(', ')}`}
+                        >
+                          {stats.voteCount} votes
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {canUserCloseSession() && !session.is_closed && (
+                      <Button
+                        onClick={() => removeIssue(issue.issue_key)}
+                        variant="outline"
+                        size="sm"
+                        className="border-red-300 text-red-600 hover:bg-red-50"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

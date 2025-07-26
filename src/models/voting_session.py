@@ -37,6 +37,32 @@ class VotingSession(db.Model):
             return self.creator_name == user_name
         return False
 
+    def can_be_managed_by_user(self, user_id=None, user_name=None):
+        """Check if user can manage this session (delete, remove issues, etc.)"""
+        if user_id and self.creator_id:
+            return self.creator_id == user_id
+        elif user_name and self.creator_name:
+            return self.creator_name == user_name
+        return False
+
+    def delete_session(self):
+        """Delete the session and all associated data"""
+        # Delete all votes first
+        Vote.query.filter_by(session_id=self.session_id).delete()
+        # Delete all issues
+        JiraIssue.query.filter_by(session_id=self.session_id).delete()
+        # Delete the session itself
+        db.session.delete(self)
+        db.session.commit()
+
+    def remove_issue(self, issue_key):
+        """Remove a specific issue and all its votes from the session"""
+        # Delete all votes for this issue
+        Vote.query.filter_by(session_id=self.session_id, issue_key=issue_key).delete()
+        # Delete the issue
+        JiraIssue.query.filter_by(session_id=self.session_id, issue_key=issue_key).delete()
+        db.session.commit()
+
     def to_dict(self):
         return {
             'id': self.id,

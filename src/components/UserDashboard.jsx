@@ -54,6 +54,36 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
     }
   }
 
+  const deleteSession = async (sessionId) => {
+    if (!confirm('Are you sure you want to delete this session? This action cannot be undone and will remove all votes and data.')) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/delete-session', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          session_id: sessionId
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        alert('Session deleted successfully')
+        fetchUserSessions() // Refresh the list
+      } else {
+        alert(data.error || 'Failed to delete session')
+      }
+    } catch (err) {
+      alert('Network error: ' + err.message)
+    }
+  }
+
   const SessionCard = ({ session, type, showJoinButton = false }) => {
     const isOwned = type === 'owned'
     const isInvited = type === 'invited'
@@ -134,15 +164,25 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
                 </Button>
               )}
               {isOwned && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onJoinSession(session.session_id)}
-                  className="flex items-center gap-1"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  Manage
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onJoinSession(session.session_id)}
+                    className="flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Manage
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteSession(session.session_id)}
+                    className="flex items-center gap-1 border-red-300 text-red-600 hover:bg-red-50"
+                  >
+                    Delete
+                  </Button>
+                </>
               )}
               {isParticipated && (
                 <Button
