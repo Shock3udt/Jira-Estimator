@@ -155,15 +155,16 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {showJoinButton && !session.is_closed && (
                 <Button
                   size="sm"
                   onClick={() => onJoinSession(session.session_id)}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 flex-1 xs:flex-initial"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  Join Session
+                  <span className="hidden xs:inline">Join Session</span>
+                  <span className="xs:hidden">Join</span>
                 </Button>
               )}
               {isOwned && (
@@ -172,18 +173,20 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
                     size="sm"
                     variant="outline"
                     onClick={() => onJoinSession(session.session_id)}
-                    className="flex items-center gap-1"
+                    className="flex items-center gap-1 flex-1 xs:flex-initial"
                   >
                     <ExternalLink className="w-3 h-3" />
-                    Manage
+                    <span className="hidden xs:inline">Manage</span>
+                    <span className="xs:hidden">Edit</span>
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => deleteSession(session.session_id)}
-                    className="flex items-center gap-1 border-red-300 text-red-600 hover:bg-red-50"
+                    className="flex items-center gap-1 border-red-300 text-red-600 hover:bg-red-50 flex-1 xs:flex-initial"
                   >
-                    Delete
+                    <span className="hidden xs:inline">Delete</span>
+                    <span className="xs:hidden">Del</span>
                   </Button>
                 </>
               )}
@@ -192,10 +195,11 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
                   size="sm"
                   variant="outline"
                   onClick={() => onJoinSession(session.session_id)}
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 flex-1 xs:flex-initial"
                 >
                   <ExternalLink className="w-3 h-3" />
-                  View Results
+                  <span className="hidden xs:inline">View Results</span>
+                  <span className="xs:hidden">View</span>
                 </Button>
               )}
             </div>
@@ -214,8 +218,8 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
       {/* User Header */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-start">
-            <div>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+            <div className="flex-1">
               <CardTitle className="flex items-center gap-2">
                 <div className="bg-primary/10 p-2 rounded-full">
                   <Users className="w-5 h-5 text-primary" />
@@ -226,15 +230,17 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
                 {user.email} • Member since {new Date(user.created_at).toLocaleDateString()}
               </CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:flex-nowrap">
               <DarkModeToggle />
-              <Button onClick={onCreateSession} className="flex items-center gap-2">
+              <Button onClick={onCreateSession} className="flex items-center gap-2 flex-1 sm:flex-initial">
                 <Vote className="w-4 h-4" />
-                Create Session
+                <span className="hidden xs:inline">Create Session</span>
+                <span className="xs:hidden">Create</span>
               </Button>
-              <Button variant="outline" onClick={onLogout} className="flex items-center gap-2">
+              <Button variant="outline" onClick={onLogout} className="flex items-center gap-2 flex-1 sm:flex-initial">
                 <LogOut className="w-4 h-4" />
-                Logout
+                <span className="hidden xs:inline">Logout</span>
+                <span className="xs:hidden">Exit</span>
               </Button>
             </div>
           </div>
@@ -250,11 +256,11 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
       {/* Tab Navigation */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex space-x-1 bg-muted p-1 rounded-lg">
+          <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1 bg-muted p-1 rounded-lg">
             <Button
               variant={activeTab === 'sessions' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('sessions')}
-              className="flex-1"
+              className="flex-1 justify-start sm:justify-center"
             >
               <Vote className="w-4 h-4 mr-2" />
               Sessions
@@ -262,7 +268,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
             <Button
               variant={activeTab === 'teams' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('teams')}
-              className="flex-1"
+              className="flex-1 justify-start sm:justify-center"
             >
               <Users className="w-4 h-4 mr-2" />
               Teams
@@ -270,18 +276,20 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
             <Button
               variant={activeTab === 'jira-settings' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('jira-settings')}
-              className="flex-1"
+              className="flex-1 justify-start sm:justify-center"
             >
               <Settings className="w-4 h-4 mr-2" />
-              Jira Settings
+              <span className="hidden xs:inline">Jira Settings</span>
+              <span className="xs:hidden">Jira</span>
             </Button>
             <Button
               variant={activeTab === 'api-keys' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('api-keys')}
-              className="flex-1"
+              className="flex-1 justify-start sm:justify-center"
             >
               <Key className="w-4 h-4 mr-2" />
-              API Keys
+              <span className="hidden xs:inline">API Keys</span>
+              <span className="xs:hidden">API</span>
             </Button>
           </div>
         </CardContent>
@@ -290,7 +298,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
       {activeTab === 'sessions' && (
         <>
           {/* Quick Actions */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={onCreateSession}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
