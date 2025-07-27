@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
+import { DarkModeToggle } from '@/components/ui/dark-mode-toggle.jsx'
 import TeamManagement from './TeamManagement.jsx'
 import JiraSettings from './JiraSettings.jsx'
 import ApiKeyManagement from './ApiKeyManagement.jsx'
@@ -101,7 +102,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
                   {isOwned && <Crown className="w-4 h-4 text-yellow-600" />}
                   {isInvited && <Mail className="w-4 h-4 text-blue-600" />}
                   {isParticipated && <History className="w-4 h-4 text-gray-600" />}
-                  <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                  <span className="font-mono text-sm bg-muted text-muted-foreground px-2 py-1 rounded">
                     {session.session_id.slice(0, 8)}...
                   </span>
                 </div>
@@ -143,11 +144,11 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-muted-foreground">
               <p><strong>Jira Query:</strong> {session.jira_query}</p>
             </div>
 
-            <div className="flex items-center gap-4 text-sm text-gray-600">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
                 {new Date(session.created_at).toLocaleTimeString()}
@@ -205,7 +206,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
   }
 
   if (loading) {
-    return <div className="text-center py-8">Loading dashboard...</div>
+    return <div className="text-center py-8 text-muted-foreground">Loading dashboard...</div>
   }
 
   return (
@@ -216,8 +217,8 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
           <div className="flex justify-between items-start">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Users className="w-5 h-5 text-blue-600" />
+                <div className="bg-primary/10 p-2 rounded-full">
+                  <Users className="w-5 h-5 text-primary" />
                 </div>
                 Welcome, {user.username}!
               </CardTitle>
@@ -226,6 +227,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              <DarkModeToggle />
               <Button onClick={onCreateSession} className="flex items-center gap-2">
                 <Vote className="w-4 h-4" />
                 Create Session
@@ -240,7 +242,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
       </Card>
 
       {error && (
-        <div className="text-red-600 text-center py-4 bg-red-50 rounded-md">
+        <div className="text-destructive text-center py-4 bg-destructive/10 rounded-md">
           {error}
         </div>
       )}
@@ -248,7 +250,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
       {/* Tab Navigation */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+          <div className="flex space-x-1 bg-muted p-1 rounded-lg">
             <Button
               variant={activeTab === 'sessions' ? 'default' : 'ghost'}
               onClick={() => setActiveTab('sessions')}
@@ -324,7 +326,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
 
         {sessions.owned_sessions.length === 0 ? (
           <Card>
-            <CardContent className="pt-6 text-center text-gray-500">
+            <CardContent className="pt-6 text-center text-muted-foreground">
               You haven't created any sessions yet. Click "Create Session" to get started!
             </CardContent>
           </Card>
@@ -349,7 +351,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
 
         {sessions.invited_sessions.length === 0 ? (
           <Card>
-            <CardContent className="pt-6 text-center text-gray-500">
+            <CardContent className="pt-6 text-center text-muted-foreground">
               No pending invitations. You'll see sessions you've been invited to here.
             </CardContent>
           </Card>
@@ -374,7 +376,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
 
         {sessions.participated_sessions.length === 0 ? (
           <Card>
-            <CardContent className="pt-6 text-center text-gray-500">
+            <CardContent className="pt-6 text-center text-muted-foreground">
               No completed sessions yet. Sessions you've participated in will appear here once closed.
             </CardContent>
           </Card>

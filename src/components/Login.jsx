@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { DarkModeToggleCompact } from '@/components/ui/dark-mode-toggle.jsx'
 import { Loader2, LogIn } from 'lucide-react'
 
 const Login = ({ onLogin, onSwitchToRegister }) => {
@@ -51,11 +52,14 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
 
   return (
     <div className="w-full max-w-md mx-auto">
+      <div className="flex justify-end mb-4">
+        <DarkModeToggleCompact />
+      </div>
       <Card>
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="bg-blue-100 p-3 rounded-full">
-              <LogIn className="w-6 h-6 text-blue-600" />
+            <div className="bg-primary/10 p-3 rounded-full">
+              <LogIn className="w-6 h-6 text-primary" />
             </div>
           </div>
           <CardTitle>Welcome Back</CardTitle>
@@ -92,7 +96,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
             </div>
 
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+              <div className="text-destructive text-sm bg-destructive/10 p-3 rounded-md">
                 {error}
               </div>
             )}
@@ -113,7 +117,7 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Don't have an account?{' '}
               <Button
                 variant="link"

@@ -8,6 +8,8 @@ import VotingSession from './components/VotingSession.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Vote, Users, ArrowLeft, Loader2 } from 'lucide-react'
+import { DarkModeProvider } from './hooks/useDarkMode.jsx'
+import { DarkModeToggleCompact } from './components/ui/dark-mode-toggle.jsx'
 import './App.css'
 
 function App() {
@@ -101,12 +103,14 @@ function App() {
   // Show loading screen while checking authentication
   if (currentView === 'loading') {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading...</p>
+      <DarkModeProvider>
+        <div className="min-h-screen bg-background flex items-center justify-center transition-colors">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
         </div>
-      </div>
+      </DarkModeProvider>
     )
   }
 
@@ -170,8 +174,8 @@ function App() {
                 <ArrowLeft className="w-4 h-4" />
                 Back to Dashboard
               </Button>
-              <div className="text-sm text-gray-600">
-                Session ID: <code className="bg-gray-100 px-2 py-1 rounded">{sessionData.sessionId}</code>
+              <div className="text-sm text-muted-foreground">
+                Session ID: <code className="bg-muted px-2 py-1 rounded">{sessionData.sessionId}</code>
               </div>
             </div>
             <VotingSession
@@ -187,16 +191,19 @@ function App() {
         return (
           <div className="space-y-8">
             {/* Header */}
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4 relative">
+              <div className="absolute top-0 right-0">
+                <DarkModeToggleCompact />
+              </div>
               <div className="flex justify-center">
-                <div className="bg-blue-100 p-4 rounded-full">
-                  <Vote className="w-12 h-12 text-blue-600" />
+                <div className="bg-primary/10 p-4 rounded-full">
+                  <Vote className="w-12 h-12 text-primary" />
                 </div>
               </div>
-              <h1 className="text-4xl font-bold text-gray-900">
+              <h1 className="text-4xl font-bold text-foreground">
                 Jira Estimation Tool
               </h1>
-              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
                 Collaborate with your team to estimate Jira issues using story points.
                 Create sessions, vote on issues, and reach consensus together.
               </p>
@@ -221,35 +228,35 @@ function App() {
             </Card>
 
             {/* Features */}
-            <div className="bg-gray-50 rounded-lg p-8 max-w-4xl mx-auto">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6 text-center">
+            <div className="bg-muted rounded-lg p-8 max-w-4xl mx-auto">
+              <h2 className="text-2xl font-semibold text-foreground mb-6 text-center">
                 Features
               </h2>
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="text-center">
-                  <div className="bg-blue-100 p-3 rounded-full w-fit mx-auto mb-3">
-                    <Vote className="w-6 h-6 text-blue-600" />
+                  <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-3">
+                    <Vote className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-medium mb-2">Story Point Voting</h3>
-                  <p className="text-sm text-gray-600">
+                  <h3 className="font-medium mb-2 text-foreground">Story Point Voting</h3>
+                  <p className="text-sm text-muted-foreground">
                     Use Fibonacci sequence for accurate estimation
                   </p>
                 </div>
                 <div className="text-center">
-                  <div className="bg-green-100 p-3 rounded-full w-fit mx-auto mb-3">
-                    <Users className="w-6 h-6 text-green-600" />
+                  <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-3">
+                    <Users className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-medium mb-2">Real-time Collaboration</h3>
-                  <p className="text-sm text-gray-600">
+                  <h3 className="font-medium mb-2 text-foreground">Real-time Collaboration</h3>
+                  <p className="text-sm text-muted-foreground">
                     See votes from team members in real-time
                   </p>
                 </div>
                 <div className="text-center">
-                  <div className="bg-purple-100 p-3 rounded-full w-fit mx-auto mb-3">
-                    <ArrowLeft className="w-6 h-6 text-purple-600" />
+                  <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-3">
+                    <ArrowLeft className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-medium mb-2">User Management</h3>
-                  <p className="text-sm text-gray-600">
+                  <h3 className="font-medium mb-2 text-foreground">User Management</h3>
+                  <p className="text-sm text-muted-foreground">
                     Track your sessions and invitations
                   </p>
                 </div>
@@ -261,11 +268,13 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="container mx-auto px-4 py-8">
-        {renderContent()}
+    <DarkModeProvider>
+      <div className="min-h-screen bg-background transition-colors">
+        <div className="container mx-auto px-4 py-8">
+          {renderContent()}
+        </div>
       </div>
-    </div>
+    </DarkModeProvider>
   )
 }
 

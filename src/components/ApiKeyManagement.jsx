@@ -277,9 +277,9 @@ const ApiKeyManagement = ({ user }) => {
           <div className="space-y-3">
             <div>
               <h4 className="font-medium text-sm mb-2">Authentication</h4>
-              <div className="bg-gray-50 p-3 rounded-md font-mono text-sm">
-                <p className="mb-1">Header: <code className="bg-gray-200 px-1 rounded">X-API-Key: your_api_key_here</code></p>
-                <p>Or: <code className="bg-gray-200 px-1 rounded">Authorization: Bearer your_api_key_here</code></p>
+              <div className="bg-muted p-3 rounded-md font-mono text-sm">
+                <p className="mb-1">Header: <code className="bg-muted-foreground/10 px-1 rounded">X-API-Key: your_api_key_here</code></p>
+                <p>Or: <code className="bg-muted-foreground/10 px-1 rounded">Authorization: Bearer your_api_key_here</code></p>
               </div>
             </div>
 
@@ -288,13 +288,13 @@ const ApiKeyManagement = ({ user }) => {
             <div>
               <h4 className="font-medium text-sm mb-2">Available Endpoints</h4>
               <div className="space-y-2 text-sm">
-                <div className="bg-gray-50 p-3 rounded-md">
+                <div className="bg-muted p-3 rounded-md">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="text-xs">POST</Badge>
                     <code>/api/create-session</code>
                   </div>
-                  <p className="text-gray-600 text-xs">Create a new estimation session</p>
-                  <div className="mt-2 bg-white p-2 rounded border text-xs font-mono">
+                  <p className="text-muted-foreground text-xs">Create a new estimation session</p>
+                  <div className="mt-2 bg-background p-2 rounded border text-xs font-mono">
                     {`{
   "jira_url": "https://company.atlassian.net",
   "jira_token": "your_jira_token",
@@ -303,21 +303,21 @@ const ApiKeyManagement = ({ user }) => {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded-md">
+                <div className="bg-muted p-3 rounded-md">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="text-xs">GET</Badge>
                     <code>/api/session/&lt;session_id&gt;</code>
                   </div>
-                  <p className="text-gray-600 text-xs">Get session details, issues, and votes</p>
+                  <p className="text-muted-foreground text-xs">Get session details, issues, and votes</p>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded-md">
+                <div className="bg-muted p-3 rounded-md">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="text-xs">POST</Badge>
                     <code>/api/vote</code>
                   </div>
-                  <p className="text-gray-600 text-xs">Submit a vote for an issue</p>
-                  <div className="mt-2 bg-white p-2 rounded border text-xs font-mono">
+                  <p className="text-muted-foreground text-xs">Submit a vote for an issue</p>
+                  <div className="mt-2 bg-background p-2 rounded border text-xs font-mono">
                     {`{
   "session_id": "session_uuid",
   "issue_key": "PROJ-123",
@@ -326,12 +326,12 @@ const ApiKeyManagement = ({ user }) => {
                   </div>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded-md">
+                <div className="bg-muted p-3 rounded-md">
                   <div className="flex items-center gap-2 mb-1">
                     <Badge variant="outline" className="text-xs">POST</Badge>
                     <code>/api/close-session</code>
                   </div>
-                  <p className="text-gray-600 text-xs">Close session and update Jira with final estimations</p>
+                  <p className="text-muted-foreground text-xs">Close session and update Jira with final estimations</p>
                 </div>
               </div>
             </div>
@@ -340,7 +340,7 @@ const ApiKeyManagement = ({ user }) => {
 
             <div>
               <h4 className="font-medium text-sm mb-2">Example Usage</h4>
-              <div className="bg-gray-900 text-green-400 p-3 rounded-md font-mono text-sm overflow-x-auto">
+              <div className="bg-slate-900 dark:bg-slate-800 text-green-400 p-3 rounded-md font-mono text-sm overflow-x-auto">
                 {`curl -X POST https://your-domain.com/api/create-session \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: jira_est_xxxxxxxxxxxxxxxx" \\
@@ -352,12 +352,12 @@ const ApiKeyManagement = ({ user }) => {
               </div>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-md">
+            <div className="bg-primary/10 p-4 rounded-md">
               <div className="flex items-start gap-2">
-                <Shield className="w-5 h-5 text-blue-600 mt-0.5" />
+                <Shield className="w-5 h-5 text-primary mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium text-blue-900">API Key Scopes</p>
-                  <ul className="text-blue-700 mt-1 space-y-1">
+                  <p className="font-medium text-foreground">API Key Scopes</p>
+                  <ul className="text-muted-foreground mt-1 space-y-1">
                     <li><strong>read:</strong> View sessions, issues, and votes</li>
                     <li><strong>write:</strong> Create sessions, submit votes</li>
                     <li><strong>admin:</strong> Full access including session management</li>

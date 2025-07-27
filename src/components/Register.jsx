@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { DarkModeToggleCompact } from '@/components/ui/dark-mode-toggle.jsx'
 import { Loader2, UserPlus } from 'lucide-react'
 
 const Register = ({ onRegister, onSwitchToLogin }) => {
@@ -67,11 +68,14 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
 
   return (
     <div className="w-full max-w-md mx-auto">
+      <div className="flex justify-end mb-4">
+        <DarkModeToggleCompact />
+      </div>
       <Card>
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="bg-green-100 p-3 rounded-full">
-              <UserPlus className="w-6 h-6 text-green-600" />
+            <div className="bg-primary/10 p-3 rounded-full">
+              <UserPlus className="w-6 h-6 text-primary" />
             </div>
           </div>
           <CardTitle>Create Account</CardTitle>
@@ -137,12 +141,12 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
             </div>
 
             {error && (
-              <div className="text-red-600 text-sm bg-red-50 p-3 rounded-md">
+              <div className="text-destructive text-sm bg-destructive/10 p-3 rounded-md">
                 {error}
               </div>
             )}
 
-            <div className="text-xs text-gray-600 bg-gray-50 p-3 rounded-md">
+            <div className="text-xs text-muted-foreground bg-muted p-3 rounded-md">
               <ul className="space-y-1">
                 <li>• Username must be at least 3 characters long</li>
                 <li>• Password must be at least 6 characters long</li>
@@ -166,7 +170,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Already have an account?{' '}
               <Button
                 variant="link"
