@@ -169,11 +169,21 @@ def create_session():
         use_saved_credentials = data.get('use_saved_credentials', False)
         test_connection = data.get('test_connection', False)  # New flag for testing
 
-        # Check for authenticated user
+        # Check for authenticated user (session or API key)
         user_id = session.get('user_id')
         user = None
+
+        # Check session authentication first
         if user_id:
             user = User.query.get(user_id)
+        else:
+            # Check for API key authentication
+            api_key = request.headers.get('X-API-Key') or request.headers.get('Authorization', '').replace('Bearer ', '')
+            if api_key:
+                from src.models.api_key import ApiKey
+                api_key_obj = ApiKey.verify_key(api_key)
+                if api_key_obj and api_key_obj.has_scope('write'):
+                    user = api_key_obj.user
 
         # Require either authenticated user or creator_name (not needed for test connections)
         if not user and not creator_name and not test_connection:

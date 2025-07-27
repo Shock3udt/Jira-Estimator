@@ -73,7 +73,7 @@ class User(db.Model):
         team_ids = [m.team_id for m in self.team_memberships if m.is_active]
         return Team.query.filter(Team.id.in_(team_ids), Team.is_active == True).all()
 
-        def get_all_teams(self):
+    def get_all_teams(self):
         """Get all teams (owned + member of)"""
         owned_teams = self.get_owned_teams()
         member_teams = self.get_member_teams()

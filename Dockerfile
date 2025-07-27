@@ -51,6 +51,7 @@ RUN mv voting_session.py src/models/
 # Copy additional model files
 COPY src/models/session_invitation.py src/models/session_invitation.py
 COPY src/models/team.py src/models/team.py
+COPY src/models/api_key.py src/models/api_key.py
 
 # Move routes
 RUN mv jira.py src/routes/
@@ -71,6 +72,9 @@ COPY src/routes/auth.py src/routes/auth.py
 
 # Copy teams.py route file
 COPY src/routes/teams.py src/routes/teams.py
+
+# Copy api_keys.py route file
+COPY src/routes/api_keys.py src/routes/api_keys.py
 
 # Expose port
 EXPOSE 5000

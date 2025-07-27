@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
 import TeamManagement from './TeamManagement.jsx'
 import JiraSettings from './JiraSettings.jsx'
+import ApiKeyManagement from './ApiKeyManagement.jsx'
 import {
   Vote,
   Users,
@@ -16,11 +17,12 @@ import {
   UserPlus,
   ExternalLink,
   LogOut,
-  Settings
+  Settings,
+  Key
 } from 'lucide-react'
 
 const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
-  const [activeTab, setActiveTab] = useState('sessions') // 'sessions', 'teams', or 'jira-settings'
+  const [activeTab, setActiveTab] = useState('sessions') // 'sessions', 'teams', 'jira-settings', or 'api-keys'
   const [sessions, setSessions] = useState({
     owned_sessions: [],
     invited_sessions: [],
@@ -271,6 +273,14 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
               <Settings className="w-4 h-4 mr-2" />
               Jira Settings
             </Button>
+            <Button
+              variant={activeTab === 'api-keys' ? 'default' : 'ghost'}
+              onClick={() => setActiveTab('api-keys')}
+              className="flex-1"
+            >
+              <Key className="w-4 h-4 mr-2" />
+              API Keys
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -385,6 +395,10 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
 
       {activeTab === 'jira-settings' && (
         <JiraSettings user={user} />
+      )}
+
+      {activeTab === 'api-keys' && (
+        <ApiKeyManagement user={user} />
       )}
     </div>
   )
