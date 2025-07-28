@@ -293,6 +293,7 @@ def submit_vote():
         session_id = data.get('session_id')
         issue_key = data.get('issue_key')
         voter_name = data.get('voter_name')  # For backward compatibility
+        guest_email = data.get('guest_email')  # For guest users
         estimation = data.get('estimation')
 
         # Check for authenticated user
@@ -301,9 +302,23 @@ def submit_vote():
         if user_id:
             user = User.query.get(user_id)
 
-        # Require either authenticated user or voter_name
-        if not user and not voter_name:
-            return jsonify({'error': 'Authentication required or voter name must be provided'}), 400
+        # Determine voter identification
+        if user:
+            # Authenticated user
+            effective_voter_name = user.username
+        elif guest_email:
+            # Guest user with email
+            effective_voter_name = guest_email
+            # Validate email format
+            import re
+            email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+            if not re.match(email_regex, guest_email):
+                return jsonify({'error': 'Invalid email format'}), 400
+        elif voter_name:
+            # Backward compatibility - non-authenticated user with name
+            effective_voter_name = voter_name
+        else:
+            return jsonify({'error': 'User authentication, guest email, or voter name required'}), 400
 
         if not all([session_id, issue_key, estimation]):
             return jsonify({'error': 'Missing required fields'}), 400
@@ -316,19 +331,21 @@ def submit_vote():
         if voting_session.is_closed:
             return jsonify({'error': 'Voting session is closed'}), 400
 
-        # Check if user already voted for this issue
+        # Check if voter already voted for this issue
         existing_vote = None
         if user:
+            # For authenticated users, check by user_id
             existing_vote = Vote.query.filter_by(
                 session_id=session_id,
                 issue_key=issue_key,
                 user_id=user.id
             ).first()
         else:
+            # For guest/non-authenticated users, check by voter_name (which includes email for guests)
             existing_vote = Vote.query.filter_by(
                 session_id=session_id,
                 issue_key=issue_key,
-                voter_name=voter_name,
+                voter_name=effective_voter_name,
                 user_id=None
             ).first()
 
@@ -337,13 +354,20 @@ def submit_vote():
             existing_vote.estimation = estimation
         else:
             # Create new vote
-            vote = Vote(
-                session_id=session_id,
-                issue_key=issue_key,
-                user_id=user.id if user else None,
-                voter_name=voter_name if not user else None,
-                estimation=estimation
-            )
+            vote_data = {
+                'session_id': session_id,
+                'issue_key': issue_key,
+                'estimation': estimation
+            }
+
+            if user:
+                vote_data['user_id'] = user.id
+                vote_data['voter_name'] = None  # Clear voter_name for authenticated users
+            else:
+                vote_data['user_id'] = None
+                vote_data['voter_name'] = effective_voter_name
+
+            vote = Vote(**vote_data)
             db.session.add(vote)
 
         db.session.commit()

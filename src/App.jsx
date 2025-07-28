@@ -5,6 +5,7 @@ import UserDashboard from './components/UserDashboard.jsx'
 import CreateSession from './components/CreateSession.jsx'
 import JoinSession from './components/JoinSession.jsx'
 import VotingSession from './components/VotingSession.jsx'
+import GuestJoinSession from './components/GuestJoinSession.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Vote, Users, ArrowLeft, Loader2 } from 'lucide-react'
@@ -13,8 +14,9 @@ import { DarkModeToggleCompact } from './components/ui/dark-mode-toggle.jsx'
 import './App.css'
 
 function App() {
-  const [currentView, setCurrentView] = useState('loading') // 'loading', 'login', 'register', 'dashboard', 'create', 'join', 'session'
+  const [currentView, setCurrentView] = useState('loading') // 'loading', 'login', 'register', 'dashboard', 'create', 'join', 'guest-join', 'session'
   const [user, setUser] = useState(null)
+  const [guestUser, setGuestUser] = useState(null) // For guest users
   const [sessionData, setSessionData] = useState({
     sessionId: '',
     isCreator: false,
@@ -46,11 +48,13 @@ function App() {
 
   const handleLogin = (userData) => {
     setUser(userData)
+    setGuestUser(null) // Clear any guest data
     setCurrentView('dashboard')
   }
 
   const handleRegister = (userData) => {
     setUser(userData)
+    setGuestUser(null) // Clear any guest data
     setCurrentView('dashboard')
   }
 
@@ -64,6 +68,7 @@ function App() {
       console.error('Logout failed:', err)
     } finally {
       setUser(null)
+      setGuestUser(null)
       setCurrentView('login')
       setSessionData({ sessionId: '', isCreator: false, creatorName: '' })
     }
@@ -78,26 +83,47 @@ function App() {
     setCurrentView('session')
   }
 
-  const handleSessionJoined = (sessionId, isCreator = false, creatorName = '') => {
+  const handleSessionJoined = (sessionId, isCreator = false, creatorName = '', guestData = null) => {
     setSessionData({
       sessionId,
       isCreator,
       creatorName
     })
+
+    // If joining as guest, set guest user data
+    if (guestData && guestData.isGuest) {
+      setGuestUser({
+        email: guestData.email,
+        isGuest: true
+      })
+    }
+
     setCurrentView('session')
   }
 
   const goToDashboard = () => {
-    setCurrentView('dashboard')
+    if (user) {
+      setCurrentView('dashboard')
+    } else {
+      // If no authenticated user, go back to login
+      setCurrentView('login')
+      setGuestUser(null)
+    }
     setSessionData({ sessionId: '', isCreator: false, creatorName: '' })
   }
 
   const goToLogin = () => {
     setCurrentView('login')
+    setGuestUser(null)
   }
 
   const goToRegister = () => {
     setCurrentView('register')
+    setGuestUser(null)
+  }
+
+  const goToGuestJoin = () => {
+    setCurrentView('guest-join')
   }
 
   // Show loading screen while checking authentication
@@ -117,10 +143,13 @@ function App() {
   const renderContent = () => {
     switch (currentView) {
       case 'login':
-        return <Login onLogin={handleLogin} onSwitchToRegister={goToRegister} />
+        return <Login onLogin={handleLogin} onSwitchToRegister={goToRegister} onGuestJoin={goToGuestJoin} />
 
       case 'register':
         return <Register onRegister={handleRegister} onSwitchToLogin={goToLogin} />
+
+      case 'guest-join':
+        return <GuestJoinSession onSessionJoined={handleSessionJoined} onBack={goToLogin} />
 
       case 'dashboard':
         return (
@@ -173,7 +202,7 @@ function App() {
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Back to Dashboard
+                {user ? 'Back to Dashboard' : 'Back to Login'}
               </Button>
               <div className="text-sm text-muted-foreground">
                 Session ID: <code className="bg-muted px-2 py-1 rounded">{sessionData.sessionId}</code>
@@ -184,6 +213,7 @@ function App() {
               isCreator={sessionData.isCreator}
               creatorName={sessionData.creatorName}
               currentUser={user}
+              guestUser={guestUser}
             />
           </div>
         )

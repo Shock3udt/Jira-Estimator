@@ -11,7 +11,7 @@ import remarkGfm from 'remark-gfm'
 
 const STORY_POINTS = ['1', '2', '3', '5', '8', '13', '21', '?']
 
-const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
+const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUser }) => {
   const [session, setSession] = useState(null)
   const [issues, setIssues] = useState([])
   const [votes, setVotes] = useState({})
@@ -25,8 +25,32 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
   const [selectedTeam, setSelectedTeam] = useState('')
   const [teamInviteLoading, setTeamInviteLoading] = useState(false)
 
-  // If user is authenticated, use their username
-  const effectiveVoterName = currentUser ? currentUser.username : voterName
+  // Determine effective voter name and type
+  const getVoterInfo = () => {
+    if (currentUser) {
+      return {
+        name: currentUser.username,
+        type: 'authenticated',
+        isGuest: false
+      }
+    } else if (guestUser && guestUser.isGuest) {
+      return {
+        name: guestUser.email,
+        type: 'guest',
+        isGuest: true
+      }
+    } else if (voterName) {
+      return {
+        name: voterName,
+        type: 'legacy',
+        isGuest: false
+      }
+    }
+    return null
+  }
+
+  const voterInfo = getVoterInfo()
+  const effectiveVoterName = voterInfo ? voterInfo.name : ''
 
   useEffect(() => {
     fetchSession()
@@ -79,8 +103,8 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
   }
 
   const submitVote = async (issueKey, estimation) => {
-    if (!currentUser && !voterName.trim()) {
-      alert('Please enter your name first')
+    if (!voterInfo) {
+      alert('Please provide your identification to vote')
       return
     }
 
@@ -92,9 +116,13 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
         estimation: estimation
       }
 
-      // For backward compatibility, include voter_name if not authenticated
-      if (!currentUser) {
-        voteData.voter_name = voterName.trim()
+      // Add appropriate identification based on voter type
+      if (voterInfo.type === 'authenticated') {
+        // For authenticated users, credentials are handled by session
+      } else if (voterInfo.type === 'guest') {
+        voteData.guest_email = voterInfo.name
+      } else if (voterInfo.type === 'legacy') {
+        voteData.voter_name = voterInfo.name
       }
 
       const response = await fetch('/api/vote', {
@@ -132,7 +160,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
 
       // For backward compatibility
       if (!currentUser) {
-        closeData.creator_name = voterName
+        closeData.creator_name = voterInfo ? voterInfo.name : ''
       }
 
       const response = await fetch('/api/close-session', {
@@ -168,7 +196,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
 
       // For backward compatibility
       if (!currentUser) {
-        deleteData.creator_name = voterName
+        deleteData.creator_name = voterInfo ? voterInfo.name : ''
       }
 
       const response = await fetch('/api/delete-session', {
@@ -207,7 +235,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
 
       // For backward compatibility
       if (!currentUser) {
-        removeData.creator_name = voterName
+        removeData.creator_name = voterInfo ? voterInfo.name : ''
       }
 
       const response = await fetch('/api/remove-issue', {
@@ -401,27 +429,34 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
         <Card>
           <CardContent className="pt-6">
             <div className="space-y-4">
-              {/* Voter Name Input (only for non-authenticated users) */}
-              {!currentUser && (
-                <div className="flex items-center gap-4">
-                  <Label htmlFor="voter_name">Your Name:</Label>
-                  <Input
-                    id="voter_name"
-                    value={voterName}
-                    onChange={(e) => setVoterName(e.target.value)}
-                    placeholder="Enter your name to vote"
-                    className="max-w-xs"
-                  />
-                </div>
-              )}
-
-              {/* Current User Display */}
-              {currentUser && (
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-gray-600">Voting as:</span>
-                  <Badge variant="secondary">{currentUser.username}</Badge>
-                </div>
-              )}
+              {/* Voter Identification Display */}
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-gray-600">Voting as:</span>
+                {voterInfo ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className={voterInfo.isGuest ? "bg-blue-100 text-blue-800" : ""}>
+                      {voterInfo.name}
+                      {voterInfo.isGuest && " (Guest)"}
+                    </Badge>
+                    {voterInfo.isGuest && (
+                      <span className="text-xs text-muted-foreground">
+                        Guest voting with email
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4">
+                    <Label htmlFor="voter_name">Enter your name:</Label>
+                    <Input
+                      id="voter_name"
+                      value={voterName}
+                      onChange={(e) => setVoterName(e.target.value)}
+                      placeholder="Enter your name to vote"
+                      className="max-w-xs"
+                    />
+                  </div>
+                )}
+              </div>
 
               {/* Invite Users (only for authenticated session creators) */}
               {currentUser && canUserCloseSession() && (
@@ -623,7 +658,7 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser }) => {
                             variant={isSelected ? "default" : "outline"}
                             size="sm"
                             onClick={() => submitVote(issue.issue_key, point)}
-                            disabled={submittingVote || (!currentUser && !voterName.trim())}
+                            disabled={submittingVote || !voterInfo}
                             className={isSelected ? "bg-blue-600 hover:bg-blue-700" : ""}
                           >
                             {point}

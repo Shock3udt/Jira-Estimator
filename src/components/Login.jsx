@@ -3,10 +3,11 @@ import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Separator } from '@/components/ui/separator.jsx'
 import { DarkModeToggleCompact } from '@/components/ui/dark-mode-toggle.jsx'
-import { Loader2, LogIn } from 'lucide-react'
+import { Loader2, LogIn, UserPlus } from 'lucide-react'
 
-const Login = ({ onLogin, onSwitchToRegister }) => {
+const Login = ({ onLogin, onSwitchToRegister, onGuestJoin }) => {
   const [formData, setFormData] = useState({
     username_or_email: '',
     password: ''
@@ -116,7 +117,26 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <Separator className="my-6" />
+
+          {/* Guest Join Option */}
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              onClick={onGuestJoin}
+              className="w-full flex items-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Join Session as Guest
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Vote in a session without creating an account
+            </p>
+          </div>
+
+          <Separator className="my-6" />
+
+          <div className="text-center">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{' '}
               <Button
