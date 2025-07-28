@@ -234,6 +234,7 @@ def create_session():
                 issue_key=issue['key'],
                 issue_title=issue['fields']['summary'],
                 issue_description=issue['fields'].get('description', ''),
+                acceptance_criteria=issue['fields'].get('customfield_12315940', ''),
                 issue_url=f"{jira_url}/browse/{issue['key']}"
             )
             db.session.add(jira_issue)
@@ -426,7 +427,7 @@ def fetch_jira_issues(jira_url, token, jql_query):
     params = {
         'jql': jql_query,
         'maxResults': 50,
-        'fields': 'summary,description,status,assignee,priority'
+        'fields': 'summary,description,status,assignee,priority,customfield_12315940'
     }
 
     response = requests.get(search_url, headers=headers, params=params)

@@ -22,7 +22,7 @@ import {
   Key
 } from 'lucide-react'
 
-const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
+const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession, onJoinBySessionId }) => {
   const [activeTab, setActiveTab] = useState('sessions') // 'sessions', 'teams', 'jira-settings', or 'api-keys'
   const [sessions, setSessions] = useState({
     owned_sessions: [],
@@ -311,7 +311,7 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession }) => {
               </CardHeader>
             </Card>
 
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {}}>
+            <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={onJoinBySessionId}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <UserPlus className="w-5 h-5 text-green-600" />

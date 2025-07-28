@@ -35,8 +35,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source code
 COPY main.py .
 COPY jira.py .
-COPY user.py .
-COPY voting_session.py .
 
 # Create necessary directories
 RUN mkdir -p database
@@ -44,17 +42,19 @@ RUN mkdir -p static
 RUN mkdir -p src/models
 RUN mkdir -p src/routes
 
-# Move Python files to correct structure
-RUN mv user.py src/models/
-RUN mv voting_session.py src/models/
-
-# Copy additional model files
+# Copy model files directly to their correct location
+COPY src/models/user.py src/models/user.py
+COPY src/models/voting_session.py src/models/voting_session.py
 COPY src/models/session_invitation.py src/models/session_invitation.py
 COPY src/models/team.py src/models/team.py
 COPY src/models/api_key.py src/models/api_key.py
 
-# Move routes
-RUN mv jira.py src/routes/
+# Copy route files directly to their correct location
+COPY jira.py src/routes/jira.py
+COPY src/routes/auth.py src/routes/auth.py
+COPY src/routes/teams.py src/routes/teams.py
+COPY src/routes/api_keys.py src/routes/api_keys.py
+COPY src/routes/user.py src/routes/user.py
 
 # Create __init__.py files
 RUN touch src/__init__.py
@@ -63,18 +63,6 @@ RUN touch src/routes/__init__.py
 
 # Copy built frontend from frontend-builder stage
 COPY --from=frontend-builder /app/frontend/dist/ ./static/
-
-# Create user.py route file
-RUN echo "from flask import Blueprint\n\nuser_bp = Blueprint('user', __name__)" > src/routes/user.py
-
-# Create auth.py route file
-COPY src/routes/auth.py src/routes/auth.py
-
-# Copy teams.py route file
-COPY src/routes/teams.py src/routes/teams.py
-
-# Copy api_keys.py route file
-COPY src/routes/api_keys.py src/routes/api_keys.py
 
 # Expose port
 EXPOSE 5000

@@ -129,6 +129,7 @@ function App() {
             onLogout={handleLogout}
             onJoinSession={(sessionId) => handleSessionJoined(sessionId, false, '')}
             onCreateSession={() => setCurrentView('create')}
+            onJoinBySessionId={() => setCurrentView('join')}
           />
         )
 
