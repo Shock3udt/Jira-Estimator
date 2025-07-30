@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from flask import Flask, send_from_directory
 from flask_cors import CORS
+from flask_mail import Mail
 
 # Import database and models FIRST to ensure they're properly loaded
 print("Importing User model...")
@@ -32,7 +33,7 @@ except Exception as e:
 
 # Import routes
 from src.routes.user import user_bp
-from src.routes.jira import jira_bp
+from jira import jira_bp  # Import from root level jira.py
 from src.routes.auth import auth_bp
 from src.routes.teams import teams_bp
 from src.routes.api_keys import api_keys_bp
@@ -58,8 +59,29 @@ app.register_blueprint(api_keys_bp, url_prefix='/api/api-keys')
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Email configuration
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'localhost')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
+app.config['MAIL_USE_SSL'] = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+
+# Set MAIL_DEFAULT_SENDER with proper fallback
+mail_sender = os.getenv('MAIL_SENDER') or os.getenv('MAIL_USERNAME')
+if mail_sender:
+    app.config['MAIL_DEFAULT_SENDER'] = mail_sender
+    print(f"📧 Email sender configured: {mail_sender}")
+else:
+    print("⚠️  No email sender configured - emails will not be sent")
+
+app.config['APP_BASE_URL'] = os.getenv('APP_BASE_URL', 'http://localhost:8080')
+
 # Initialize database with app
 db.init_app(app)
+
+# Initialize Flask-Mail
+mail = Mail(app)
 
 # Create all tables within app context
 with app.app_context():

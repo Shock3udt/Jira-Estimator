@@ -1,9 +1,10 @@
 import uuid
 import time
 import requests
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app
 from src.models.user import db, User
 from src.models.voting_session import VotingSession, JiraIssue, Vote
+from src.services.email_service import send_first_vote_notification_email
 
 jira_bp = Blueprint('jira', __name__)
 
@@ -369,6 +370,51 @@ def submit_vote():
 
             vote = Vote(**vote_data)
             db.session.add(vote)
+
+            # Check if this is the voter's first vote in this session and send notification
+            is_first_vote = False
+            voter_id = user.id if user else None
+            voter_name_for_check = effective_voter_name
+
+            if voter_id:
+                # For authenticated users, check by user_id
+                previous_votes = Vote.query.filter_by(
+                    session_id=session_id,
+                    user_id=voter_id
+                ).count()
+                is_first_vote = previous_votes == 1  # Including the current vote we just added
+            else:
+                # For guest users, check by voter_name
+                previous_votes = Vote.query.filter_by(
+                    session_id=session_id,
+                    voter_name=voter_name_for_check,
+                    user_id=None
+                ).count()
+                is_first_vote = previous_votes == 1  # Including the current vote we just added
+
+            # Send first vote notification email to session creator (non-blocking)
+            if is_first_vote and voting_session.creator_id:
+                try:
+                    mail = current_app.extensions.get('mail')
+                    if mail:
+                        creator = User.query.get(voting_session.creator_id)
+                        if creator and creator.email:
+                            session_details = {
+                                'jira_url': voting_session.jira_url,
+                                'jira_query': voting_session.jira_query
+                            }
+                            send_first_vote_notification_email(
+                                mail,
+                                creator.email,
+                                creator.username,
+                                effective_voter_name,
+                                session_id,
+                                issue_key,
+                                estimation,
+                                session_details
+                            )
+                except Exception as email_error:
+                    current_app.logger.error(f"Failed to send first vote notification email: {str(email_error)}")
 
         db.session.commit()
 

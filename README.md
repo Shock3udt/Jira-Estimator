@@ -31,6 +31,7 @@
 - 🔒 **Secure** - Token-based authentication with session isolation and API key scoping
 - 👤 **Guest Support** - Allow guest users to participate with email identification
 - 📱 **Mobile-Friendly** - Works seamlessly on desktop and mobile devices
+- 📧 **Email Notifications** - Welcome emails, session invitations, and vote notifications
 - 🐳 **Docker Ready** - Easy deployment with Docker and Docker Compose
 
 ## 🚀 Quick Start
@@ -499,6 +500,7 @@ curl -X GET https://your-domain.com/api/session/session_uuid_here \
 
 - [Deployment Guide](./DEPLOYMENT_README.md)
 - [NGINX Deployment Guide](./NGINX_DEPLOYMENT.md)
+- [Email Configuration Guide](./EMAIL_CONFIGURATION.md)
 - [Project Overview](./Jira%20Estimation%20Tool.md)
 - [Contributing Guidelines](./CONTRIBUTING.md)
 - [Changelog](./CHANGELOG.md)

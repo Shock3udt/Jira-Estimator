@@ -1,6 +1,7 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app
 from src.models.user import db, User
 from src.models.session_invitation import SessionInvitation
+from src.services.email_service import send_welcome_email, send_session_invitation_email
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -39,6 +40,16 @@ def register():
         # Log user in
         session['user_id'] = user.id
         session['username'] = user.username
+
+        # Send welcome email (non-blocking)
+        try:
+            # Get mail instance from current app
+            mail = current_app.extensions.get('mail')
+            if mail:
+                send_welcome_email(mail, user.email, user.username)
+        except Exception as e:
+            # Log error but don't fail registration
+            current_app.logger.error(f"Failed to send welcome email to {user.email}: {str(e)}")
 
         return jsonify({
             'message': 'Registration successful',
@@ -211,6 +222,28 @@ def invite_to_session():
         db.session.add(invitation)
         db.session.commit()
 
+        # Send invitation email (non-blocking)
+        try:
+            # Get mail instance from current app
+            mail = current_app.extensions.get('mail')
+            if mail:
+                inviter = User.query.get(user_id)
+                session_details = {
+                    'jira_url': voting_session.jira_url,
+                    'jira_query': voting_session.jira_query
+                }
+                send_session_invitation_email(
+                    mail,
+                    invitee.email,
+                    invitee.username,
+                    inviter.username,
+                    session_id,
+                    session_details
+                )
+        except Exception as e:
+            # Log error but don't fail invitation
+            current_app.logger.error(f"Failed to send invitation email to {invitee.email}: {str(e)}")
+
         return jsonify({
             'message': f'User {invitee_username} invited successfully',
             'invitation': invitation.to_dict()
@@ -264,6 +297,13 @@ def invite_team_to_session():
         already_invited_count = 0
         errors = []
 
+        # Get inviter info for emails
+        inviter = User.query.get(user_id)
+        session_details = {
+            'jira_url': voting_session.jira_url,
+            'jira_query': voting_session.jira_query
+        }
+
         for member in team_members:
             # Skip if member is already invited
             existing_invitation = SessionInvitation.query.filter_by(
@@ -284,6 +324,22 @@ def invite_team_to_session():
                 )
                 db.session.add(invitation)
                 invited_count += 1
+
+                # Send invitation email (non-blocking)
+                try:
+                    mail = current_app.extensions.get('mail')
+                    if mail:
+                        send_session_invitation_email(
+                            mail,
+                            member.email,
+                            member.username,
+                            inviter.username,
+                            session_id,
+                            session_details
+                        )
+                except Exception as email_error:
+                    current_app.logger.error(f"Failed to send invitation email to {member.email}: {str(email_error)}")
+
             except Exception as e:
                 errors.append(f"Failed to invite {member.username}: {str(e)}")
 

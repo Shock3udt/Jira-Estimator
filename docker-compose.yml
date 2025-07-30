@@ -12,6 +12,16 @@ services:
     environment:
       - FLASK_ENV=production
       - FLASK_APP=main.py
+      # Email Configuration - Add these to your .env file
+      # IMPORTANT: MAIL_SENDER must be set to avoid sender/recipient issues
+      # - MAIL_SERVER=mail.vas-hosting.cz
+      # - MAIL_PORT=465
+      # - MAIL_USE_TLS=false
+      # - MAIL_USE_SSL=true
+      # - MAIL_USERNAME=no-reply@mitruk.eu
+      # - MAIL_SENDER=no-reply@mitruk.eu  # REQUIRED: Must be different from recipient emails
+      # - MAIL_PASSWORD=your_email_password
+      # - APP_BASE_URL=http://localhost:8080
     volumes:
       - ./database:/app/database
     restart: unless-stopped
@@ -21,7 +31,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
+    env_file:
+      - .env
 volumes:
   database:
     driver: local

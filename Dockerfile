@@ -41,6 +41,7 @@ RUN mkdir -p database
 RUN mkdir -p static
 RUN mkdir -p src/models
 RUN mkdir -p src/routes
+RUN mkdir -p src/services
 
 # Copy model files directly to their correct location
 COPY src/models/user.py src/models/user.py
@@ -55,6 +56,10 @@ COPY src/routes/auth.py src/routes/auth.py
 COPY src/routes/teams.py src/routes/teams.py
 COPY src/routes/api_keys.py src/routes/api_keys.py
 COPY src/routes/user.py src/routes/user.py
+
+# Copy service files to their correct location
+COPY src/services/__init__.py src/services/__init__.py
+COPY src/services/email_service.py src/services/email_service.py
 
 # Create __init__.py files
 RUN touch src/__init__.py
