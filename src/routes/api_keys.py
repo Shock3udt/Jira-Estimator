@@ -56,7 +56,8 @@ def api_key_auth_required(scopes=None):
                 db.session.commit()
             except Exception as e:
                 # Don't fail the request if logging fails
-                print(f"Failed to log API key usage: {e}")
+                from flask import current_app
+                current_app.logger.error(f"Failed to log API key usage: {e}")
 
             # Add API key info to request context
             request.api_key = api_key_obj

@@ -306,3 +306,9 @@ config.local.*
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Testing and development artifacts
+cookies.txt
+test_*.md
+*.tmp
+*.temp
