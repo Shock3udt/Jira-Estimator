@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
-import { ExternalLink, Users, Clock, CheckCircle, UserPlus } from 'lucide-react'
+import { ExternalLink, Users, Clock, CheckCircle, UserPlus, Copy, Link, Check } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -24,6 +24,10 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
   const [userTeams, setUserTeams] = useState([])
   const [selectedTeam, setSelectedTeam] = useState('')
   const [teamInviteLoading, setTeamInviteLoading] = useState(false)
+
+  // Share link functionality
+  const [showShareLink, setShowShareLink] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   // Determine effective voter name and type
   const getVoterInfo = () => {
@@ -359,6 +363,43 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
     return false
   }
 
+  const copyShareLink = async () => {
+    const shareUrl = `${window.location.origin}/join/${sessionId}`
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setLinkCopied(true)
+
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setLinkCopied(false)
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy link:', err)
+
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea')
+      textArea.value = shareUrl
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        setLinkCopied(true)
+        setTimeout(() => {
+          setLinkCopied(false)
+        }, 2000)
+      } catch (fallbackErr) {
+        console.error('Fallback copy failed:', fallbackErr)
+      }
+      document.body.removeChild(textArea)
+    }
+  }
+
+  const getShareUrl = () => {
+    return `${window.location.origin}/join/${sessionId}`
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading session...</div>
   }
@@ -393,18 +434,31 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
                 Created by {session.creator_name} • {issues.length} issues
               </CardDescription>
             </div>
-            {canUserCloseSession() && (
-              <div className="flex gap-2">
-                {!session.is_closed && (
-                  <Button onClick={closeSession} variant="destructive">
-                    Close Session
+            <div className="flex gap-2 items-start">
+              {/* Share Link Button */}
+              <Button
+                onClick={() => setShowShareLink(!showShareLink)}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Link className="w-4 h-4" />
+                Share Link
+              </Button>
+
+              {canUserCloseSession() && (
+                <>
+                  {!session.is_closed && (
+                    <Button onClick={closeSession} variant="destructive">
+                      Close Session
+                    </Button>
+                  )}
+                  <Button onClick={deleteSession} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                    Delete Session
                   </Button>
-                )}
-                <Button onClick={deleteSession} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
-                  Delete Session
-                </Button>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -421,6 +475,45 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
               {voterNames.length} voters
             </div>
           </div>
+
+          {/* Share Link Section */}
+          {showShareLink && (
+            <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-3">
+              <div className="flex items-center gap-2">
+                <Link className="w-4 h-4 text-primary" />
+                <span className="text-sm font-medium">Share this session</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Anyone with this link can join the session. Authenticated users will join directly,
+                while unauthenticated users will be prompted to provide their email for guest access.
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={getShareUrl()}
+                  readOnly
+                  className="text-sm font-mono"
+                />
+                <Button
+                  onClick={copyShareLink}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 min-w-[100px]"
+                >
+                  {linkCopied ? (
+                    <>
+                      <Check className="w-4 h-4 text-green-600" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -14,48 +14,99 @@ import { DarkModeToggleCompact } from './components/ui/dark-mode-toggle.jsx'
 import './App.css'
 
 function App() {
-  const [currentView, setCurrentView] = useState('loading') // 'loading', 'login', 'register', 'dashboard', 'create', 'join', 'guest-join', 'session'
+  const [currentView, setCurrentView] = useState('login')
   const [user, setUser] = useState(null)
-  const [guestUser, setGuestUser] = useState(null) // For guest users
+  const [loading, setLoading] = useState(true)
   const [sessionData, setSessionData] = useState({
-    sessionId: '',
+    sessionId: null,
     isCreator: false,
-    creatorName: ''
+    creatorName: '',
+    guestUser: null
   })
 
+  // URL parameter handling for session sharing
+  const [urlSessionId, setUrlSessionId] = useState(null)
+
   useEffect(() => {
-    checkAuthStatus()
+    // Get session ID from URL synchronously
+    const sessionIdFromUrl = getSessionIdFromUrl()
+    setUrlSessionId(sessionIdFromUrl)
+
+    // Check auth status with the session ID
+    checkAuthStatus(sessionIdFromUrl)
   }, [])
 
-  const checkAuthStatus = async () => {
+  // Extract session ID from URL synchronously
+  const getSessionIdFromUrl = () => {
+    const path = window.location.pathname
+    const sessionMatch = path.match(/^\/join\/([a-f0-9-]{36})$/i)
+
+    if (sessionMatch) {
+      const sessionId = sessionMatch[1]
+      // Clear the URL to avoid confusion
+      window.history.replaceState({}, '', '/')
+      return sessionId
+    }
+    return null
+  }
+
+  const checkAuthStatus = async (sessionIdFromUrl = null) => {
     try {
       const response = await fetch('/api/auth/current-user', {
         credentials: 'include'
       })
 
       if (response.ok) {
-        const data = await response.json()
-        setUser(data.user)
-        setCurrentView('dashboard')
+        const userData = await response.json()
+        setUser(userData)
+
+        // If we have a session ID from URL and user is authenticated, join directly
+        if (sessionIdFromUrl) {
+          handleSessionJoined(sessionIdFromUrl, false, '', null)
+        } else {
+          setCurrentView('dashboard')
+        }
+      } else {
+        // User not authenticated
+        if (sessionIdFromUrl) {
+          // Show guest join with pre-filled session ID
+          setCurrentView('guest-join')
+        } else {
+          setCurrentView('login')
+        }
+      }
+    } catch (error) {
+      console.error('Auth check failed:', error)
+      if (sessionIdFromUrl) {
+        setCurrentView('guest-join')
       } else {
         setCurrentView('login')
       }
-    } catch (err) {
-      console.error('Auth check failed:', err)
-      setCurrentView('login')
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleLogin = (userData) => {
     setUser(userData)
-    setGuestUser(null) // Clear any guest data
-    setCurrentView('dashboard')
+
+    // If we have a session ID from URL, join directly after login
+    if (urlSessionId) {
+      handleSessionJoined(urlSessionId, false, '', null)
+    } else {
+      setCurrentView('dashboard')
+    }
   }
 
   const handleRegister = (userData) => {
     setUser(userData)
-    setGuestUser(null) // Clear any guest data
-    setCurrentView('dashboard')
+
+    // If we have a session ID from URL, join directly after registration
+    if (urlSessionId) {
+      handleSessionJoined(urlSessionId, false, '', null)
+    } else {
+      setCurrentView('dashboard')
+    }
   }
 
   const handleLogout = async () => {
@@ -64,13 +115,18 @@ function App() {
         method: 'POST',
         credentials: 'include'
       })
-    } catch (err) {
-      console.error('Logout failed:', err)
+    } catch (error) {
+      console.error('Logout failed:', error)
     } finally {
       setUser(null)
-      setGuestUser(null)
+      setUrlSessionId(null)
+      setSessionData({
+        sessionId: null,
+        isCreator: false,
+        creatorName: '',
+        guestUser: null
+      })
       setCurrentView('login')
-      setSessionData({ sessionId: '', isCreator: false, creatorName: '' })
     }
   }
 
@@ -78,61 +134,52 @@ function App() {
     setSessionData({
       sessionId,
       isCreator: true,
-      creatorName: user?.username || ''
+      creatorName: user.username,
+      guestUser: null
     })
-    setCurrentView('session')
+    setCurrentView('voting')
   }
 
   const handleSessionJoined = (sessionId, isCreator = false, creatorName = '', guestData = null) => {
     setSessionData({
       sessionId,
       isCreator,
-      creatorName
+      creatorName,
+      guestUser: guestData
     })
-
-    // If joining as guest, set guest user data
-    if (guestData && guestData.isGuest) {
-      setGuestUser({
-        email: guestData.email,
-        isGuest: true
-      })
-    }
-
-    setCurrentView('session')
+    setCurrentView('voting')
+    // Clear URL session ID once we've joined
+    setUrlSessionId(null)
   }
 
   const goToDashboard = () => {
-    if (user) {
-      setCurrentView('dashboard')
-    } else {
-      // If no authenticated user, go back to login
-      setCurrentView('login')
-      setGuestUser(null)
-    }
-    setSessionData({ sessionId: '', isCreator: false, creatorName: '' })
+    setCurrentView('dashboard')
+    setSessionData({
+      sessionId: null,
+      isCreator: false,
+      creatorName: '',
+      guestUser: null
+    })
   }
 
   const goToLogin = () => {
     setCurrentView('login')
-    setGuestUser(null)
   }
 
   const goToRegister = () => {
     setCurrentView('register')
-    setGuestUser(null)
   }
 
   const goToGuestJoin = () => {
     setCurrentView('guest-join')
   }
 
-  // Show loading screen while checking authentication
-  if (currentView === 'loading') {
+  if (loading) {
     return (
       <DarkModeProvider>
-        <div className="min-h-screen bg-background flex items-center justify-center transition-colors">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
             <p className="text-muted-foreground">Loading...</p>
           </div>
         </div>
@@ -143,157 +190,67 @@ function App() {
   const renderContent = () => {
     switch (currentView) {
       case 'login':
-        return <Login onLogin={handleLogin} onSwitchToRegister={goToRegister} onGuestJoin={goToGuestJoin} />
-
+        return (
+          <Login
+            onLogin={handleLogin}
+            onSwitchToRegister={() => setCurrentView('register')}
+            onGuestJoin={() => setCurrentView('guest-join')}
+          />
+        )
       case 'register':
-        return <Register onRegister={handleRegister} onSwitchToLogin={goToLogin} />
-
-      case 'guest-join':
-        return <GuestJoinSession onSessionJoined={handleSessionJoined} onBack={goToLogin} />
-
+        return (
+          <Register
+            onRegister={handleRegister}
+            onSwitchToLogin={() => setCurrentView('login')}
+          />
+        )
       case 'dashboard':
         return (
           <UserDashboard
             user={user}
             onLogout={handleLogout}
-            onJoinSession={(sessionId) => handleSessionJoined(sessionId, false, '')}
-            onCreateSession={() => setCurrentView('create')}
-            onJoinBySessionId={() => setCurrentView('join')}
+            onJoinSession={handleSessionJoined}
+            onCreateSession={() => setCurrentView('create-session')}
+            onJoinBySessionId={() => setCurrentView('join-session')}
           />
         )
-
-      case 'create':
+      case 'create-session':
         return (
-          <div className="space-y-4">
-            <Button
-              variant="ghost"
-              onClick={goToDashboard}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </Button>
-            <CreateSession onSessionCreated={handleSessionCreated} />
-          </div>
+          <CreateSession
+            onSessionCreated={handleSessionCreated}
+          />
         )
-
-      case 'join':
+      case 'join-session':
         return (
-          <div className="space-y-4">
-            <Button
-              variant="ghost"
-              onClick={goToDashboard}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </Button>
-            <JoinSession onSessionJoined={handleSessionJoined} />
-          </div>
+          <JoinSession
+            onSessionJoined={handleSessionJoined}
+          />
         )
-
-      case 'session':
+      case 'guest-join':
         return (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <Button
-                variant="ghost"
-                onClick={goToDashboard}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                {user ? 'Back to Dashboard' : 'Back to Login'}
-              </Button>
-              <div className="text-sm text-muted-foreground">
-                Session ID: <code className="bg-muted px-2 py-1 rounded">{sessionData.sessionId}</code>
-              </div>
-            </div>
-            <VotingSession
-              sessionId={sessionData.sessionId}
-              isCreator={sessionData.isCreator}
-              creatorName={sessionData.creatorName}
-              currentUser={user}
-              guestUser={guestUser}
-            />
-          </div>
+          <GuestJoinSession
+            onSessionJoined={handleSessionJoined}
+            onBack={goToLogin}
+            prefilledSessionId={urlSessionId}
+          />
         )
-
+      case 'voting':
+        return (
+          <VotingSession
+            sessionId={sessionData.sessionId}
+            isCreator={sessionData.isCreator}
+            creatorName={sessionData.creatorName}
+            currentUser={user}
+            guestUser={sessionData.guestUser}
+          />
+        )
       default:
         return (
-          <div className="space-y-8">
-            {/* Header */}
-            <div className="text-center space-y-4 relative">
-              <div className="absolute top-0 right-0">
-                <DarkModeToggleCompact />
-              </div>
-              <div className="flex justify-center">
-                <div className="bg-primary/10 p-4 rounded-full">
-                  <Vote className="w-12 h-12 text-primary" />
-                </div>
-              </div>
-              <h1 className="text-4xl font-bold text-foreground">
-                Jira Estimation Tool
-              </h1>
-              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Collaborate with your team to estimate Jira issues using story points.
-                Create sessions, vote on issues, and reach consensus together.
-              </p>
-            </div>
-
-            {/* Authentication required message */}
-            <Card className="max-w-md mx-auto">
-              <CardHeader className="text-center">
-                <CardTitle>Authentication Required</CardTitle>
-                <CardDescription>
-                  Please sign in to access the Jira Estimation Tool
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex gap-2">
-                <Button onClick={goToLogin} className="flex-1">
-                  Sign In
-                </Button>
-                <Button onClick={goToRegister} variant="outline" className="flex-1">
-                  Sign Up
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Features */}
-            <div className="bg-muted rounded-lg p-8 max-w-4xl mx-auto">
-              <h2 className="text-2xl font-semibold text-foreground mb-6 text-center">
-                Features
-              </h2>
-              <div className="grid md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-3">
-                    <Vote className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-medium mb-2 text-foreground">Story Point Voting</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Use Fibonacci sequence for accurate estimation
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-3">
-                    <Users className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-medium mb-2 text-foreground">Real-time Collaboration</h3>
-                  <p className="text-sm text-muted-foreground">
-                    See votes from team members in real-time
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-primary/10 p-3 rounded-full w-fit mx-auto mb-3">
-                    <ArrowLeft className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="font-medium mb-2 text-foreground">User Management</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Track your sessions and invitations
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <Login
+            onLogin={handleLogin}
+            onSwitchToRegister={() => setCurrentView('register')}
+            onGuestJoin={() => setCurrentView('guest-join')}
+          />
         )
     }
   }

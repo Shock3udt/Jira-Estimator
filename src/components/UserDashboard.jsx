@@ -19,7 +19,10 @@ import {
   ExternalLink,
   LogOut,
   Settings,
-  Key
+  Key,
+  Copy,
+  Check,
+  Link
 } from 'lucide-react'
 
 const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession, onJoinBySessionId }) => {
@@ -31,6 +34,9 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession, onJoinB
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // Share link functionality
+  const [copiedLinks, setCopiedLinks] = useState({}) // Track copied state per session
 
   useEffect(() => {
     fetchUserSessions()
@@ -87,10 +93,44 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession, onJoinB
     }
   }
 
+  const copyShareLink = async (sessionId) => {
+    const shareUrl = `${window.location.origin}/join/${sessionId}`
+
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopiedLinks(prev => ({ ...prev, [sessionId]: true }))
+
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setCopiedLinks(prev => ({ ...prev, [sessionId]: false }))
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy link:', err)
+
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea')
+      textArea.value = shareUrl
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        setCopiedLinks(prev => ({ ...prev, [sessionId]: true }))
+        setTimeout(() => {
+          setCopiedLinks(prev => ({ ...prev, [sessionId]: false }))
+        }, 2000)
+      } catch (fallbackErr) {
+        console.error('Fallback copy failed:', fallbackErr)
+      }
+      document.body.removeChild(textArea)
+    }
+  }
+
   const SessionCard = ({ session, type, showJoinButton = false }) => {
     const isOwned = type === 'owned'
     const isInvited = type === 'invited'
     const isParticipated = type === 'participated'
+    const isLinkCopied = copiedLinks[session.session_id]
 
     return (
       <Card key={session.id} className="hover:shadow-md transition-shadow">
@@ -178,6 +218,26 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession, onJoinB
                     <ExternalLink className="w-3 h-3" />
                     <span className="hidden xs:inline">Manage</span>
                     <span className="xs:hidden">Edit</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => copyShareLink(session.session_id)}
+                    className="flex items-center gap-1 flex-1 xs:flex-initial"
+                  >
+                    {isLinkCopied ? (
+                      <>
+                        <Check className="w-3 h-3 text-green-600" />
+                        <span className="hidden xs:inline text-green-600">Copied!</span>
+                        <span className="xs:hidden text-green-600">✓</span>
+                      </>
+                    ) : (
+                      <>
+                        <Link className="w-3 h-3" />
+                        <span className="hidden xs:inline">Share</span>
+                        <span className="xs:hidden">📋</span>
+                      </>
+                    )}
                   </Button>
                   <Button
                     size="sm"

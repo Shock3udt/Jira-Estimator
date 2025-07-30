@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 import { Label } from '@/components/ui/label.jsx'
@@ -6,13 +6,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator.jsx'
 import { UserPlus, ArrowLeft, Loader2 } from 'lucide-react'
 
-const GuestJoinSession = ({ onSessionJoined, onBack }) => {
+const GuestJoinSession = ({ onSessionJoined, onBack, prefilledSessionId }) => {
   const [formData, setFormData] = useState({
     session_id: '',
     email: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Pre-fill session ID if provided via URL
+  useEffect(() => {
+    if (prefilledSessionId) {
+      setFormData(prev => ({
+        ...prev,
+        session_id: prefilledSessionId
+      }))
+    }
+  }, [prefilledSessionId])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -76,7 +86,10 @@ const GuestJoinSession = ({ onSessionJoined, onBack }) => {
           </div>
           <CardTitle>Join Session as Guest</CardTitle>
           <CardDescription>
-            Enter your email and session ID to join an estimation session as a guest
+            {prefilledSessionId
+              ? "Enter your email to join this estimation session as a guest"
+              : "Enter your email and session ID to join an estimation session as a guest"
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -107,9 +120,13 @@ const GuestJoinSession = ({ onSessionJoined, onBack }) => {
                 value={formData.session_id}
                 onChange={handleChange}
                 required
+                disabled={!!prefilledSessionId}
               />
               <p className="text-xs text-muted-foreground">
-                Get the session ID from the session creator
+                {prefilledSessionId
+                  ? "Session ID has been pre-filled from the shared link"
+                  : "Get the session ID from the session creator"
+                }
               </p>
             </div>
 
