@@ -1,8 +1,13 @@
 services:
   jira-estimation-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Use pre-built image by default (fastest)
+    image: shock3udt/jira-estimation:latest
+
+    # Uncomment the lines below and comment out 'image:' above to build from source
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+
     ports:
       - "8080:5000"
     environment:
