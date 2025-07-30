@@ -537,6 +537,13 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
                       </span>
                     )}
                   </div>
+                ) : currentUser === null && !guestUser ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">Loading...</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      Checking authentication status
+                    </span>
+                  </div>
                 ) : (
                   <div className="flex items-center gap-4">
                     <Label htmlFor="voter_name">Enter your name:</Label>

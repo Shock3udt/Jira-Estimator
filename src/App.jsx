@@ -13,19 +13,69 @@ import { DarkModeProvider } from './hooks/useDarkMode.jsx'
 import { DarkModeToggleCompact } from './components/ui/dark-mode-toggle.jsx'
 import './App.css'
 
+// Function to get initial user state from sessionStorage
+const getInitialUserState = () => {
+  try {
+    const savedUser = sessionStorage.getItem('currentUser')
+    return savedUser ? JSON.parse(savedUser) : null
+  } catch (error) {
+    console.error('Error loading user from sessionStorage:', error)
+    return null
+  }
+}
+
+// Function to get initial session data from sessionStorage
+const getInitialSessionData = () => {
+  try {
+    const savedSessionData = sessionStorage.getItem('sessionData')
+    return savedSessionData ? JSON.parse(savedSessionData) : {
+      sessionId: null,
+      isCreator: false,
+      creatorName: '',
+      guestUser: null
+    }
+  } catch (error) {
+    console.error('Error loading session data from sessionStorage:', error)
+    return {
+      sessionId: null,
+      isCreator: false,
+      creatorName: '',
+      guestUser: null
+    }
+  }
+}
+
 function App() {
-  const [currentView, setCurrentView] = useState('login')
-  const [user, setUser] = useState(null)
+  const initialUser = getInitialUserState()
+  const [currentView, setCurrentView] = useState(initialUser ? 'dashboard' : 'login') // Set initial view based on stored user
+  const [user, setUser] = useState(initialUser) // Initialize from sessionStorage
   const [loading, setLoading] = useState(true)
-  const [sessionData, setSessionData] = useState({
-    sessionId: null,
-    isCreator: false,
-    creatorName: '',
-    guestUser: null
-  })
+  const [sessionData, setSessionData] = useState(getInitialSessionData) // Initialize from sessionStorage
 
   // URL parameter handling for session sharing
   const [urlSessionId, setUrlSessionId] = useState(null)
+
+  // Save user to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      if (user) {
+        sessionStorage.setItem('currentUser', JSON.stringify(user))
+      } else {
+        sessionStorage.removeItem('currentUser')
+      }
+    } catch (error) {
+      console.error('Error saving user to sessionStorage:', error)
+    }
+  }, [user])
+
+  // Save session data to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('sessionData', JSON.stringify(sessionData))
+    } catch (error) {
+      console.error('Error saving session data to sessionStorage:', error)
+    }
+  }, [sessionData])
 
   useEffect(() => {
     // Get session ID from URL synchronously
@@ -58,7 +108,7 @@ function App() {
 
       if (response.ok) {
         const userData = await response.json()
-        setUser(userData)
+        setUser(userData.user) // Extract user from response object
 
         // If we have a session ID from URL and user is authenticated, join directly
         if (sessionIdFromUrl) {
@@ -67,7 +117,10 @@ function App() {
           setCurrentView('dashboard')
         }
       } else {
-        // User not authenticated
+        // User not authenticated - clear stored user data
+        setUser(null)
+        // Clear sessionStorage when user is not authenticated
+        sessionStorage.removeItem('currentUser')
         if (sessionIdFromUrl) {
           // Show guest join with pre-filled session ID
           setCurrentView('guest-join')
@@ -77,6 +130,9 @@ function App() {
       }
     } catch (error) {
       console.error('Auth check failed:', error)
+      // Clear stored user data on error
+      setUser(null)
+      sessionStorage.removeItem('currentUser')
       if (sessionIdFromUrl) {
         setCurrentView('guest-join')
       } else {
@@ -134,7 +190,7 @@ function App() {
     setSessionData({
       sessionId,
       isCreator: true,
-      creatorName: user.username,
+      creatorName: user?.username || '',
       guestUser: null
     })
     setCurrentView('voting')

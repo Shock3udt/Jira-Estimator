@@ -196,7 +196,7 @@ const TeamManagement = ({ user }) => {
   const TeamDetails = ({ team }) => {
     const [newMemberUsername, setNewMemberUsername] = useState('')
     const [memberLoading, setMemberLoading] = useState(false)
-    const isOwner = team.creator_id === user.id
+    const isOwner = team.creator_id === user?.id
 
     const addMember = async () => {
       if (!newMemberUsername.trim()) return

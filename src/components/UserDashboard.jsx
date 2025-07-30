@@ -284,10 +284,10 @@ const UserDashboard = ({ user, onLogout, onJoinSession, onCreateSession, onJoinB
                 <div className="bg-primary/10 p-2 rounded-full">
                   <Users className="w-5 h-5 text-primary" />
                 </div>
-                Welcome, {user.username}!
+                Welcome, {user?.username || 'User'}!
               </CardTitle>
               <CardDescription>
-                {user.email} • Member since {new Date(user.created_at).toLocaleDateString()}
+                {user?.email || 'Loading user information...'} • Member since {user?.created_at ? new Date(user.created_at).toLocaleDateString() : 'Verifying account...'}
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2 sm:flex-nowrap">
