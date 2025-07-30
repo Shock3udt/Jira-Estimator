@@ -5,13 +5,13 @@ import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
-import { ExternalLink, Users, Clock, CheckCircle, UserPlus, Copy, Link, Check } from 'lucide-react'
+import { ExternalLink, Users, Clock, CheckCircle, UserPlus, Copy, Link, Check, ArrowLeft } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const STORY_POINTS = ['1', '2', '3', '5', '8', '13', '21', '?']
 
-const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUser }) => {
+const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUser, onBack }) => {
   const [session, setSession] = useState(null)
   const [issues, setIssues] = useState([])
   const [votes, setVotes] = useState({})
@@ -416,6 +416,16 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
+      {/* Back Navigation */}
+      <Button
+        variant="ghost"
+        onClick={onBack}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        {currentUser ? 'Back to Dashboard' : 'Back to Login'}
+      </Button>
+
       {/* Session Header */}
       <Card>
         <CardHeader>

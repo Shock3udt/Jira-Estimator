@@ -6,9 +6,9 @@ import { Textarea } from '@/components/ui/textarea.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
-import { Loader2, Shield, Save, Settings } from 'lucide-react'
+import { Loader2, Shield, Save, Settings, ArrowLeft } from 'lucide-react'
 
-const CreateSession = ({ onSessionCreated }) => {
+const CreateSession = ({ onSessionCreated, onBack }) => {
   const [formData, setFormData] = useState({
     jira_url: '',
     jira_token: '',
@@ -141,13 +141,23 @@ const CreateSession = ({ onSessionCreated }) => {
   }
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Create Estimation Session</CardTitle>
-        <CardDescription>
-          Set up a new Jira estimation session for your team
-        </CardDescription>
-      </CardHeader>
+    <div className="w-full max-w-2xl mx-auto space-y-4">
+      <Button
+        variant="ghost"
+        onClick={onBack}
+        className="flex items-center gap-2"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to Dashboard
+      </Button>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Create Estimation Session</CardTitle>
+          <CardDescription>
+            Set up a new Jira estimation session for your team
+          </CardDescription>
+        </CardHeader>
       <CardContent>
         {/* Saved Credentials Option */}
         {savedSettings.jira_url && savedSettings.has_jira_token && (
@@ -289,6 +299,7 @@ const CreateSession = ({ onSessionCreated }) => {
         </form>
       </CardContent>
     </Card>
+  </div>
   )
 }
 

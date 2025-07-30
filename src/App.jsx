@@ -1,41 +1,38 @@
 import { useState, useEffect } from 'react'
+import { DarkModeProvider } from './hooks/useDarkMode.jsx'
+
+// Import components
 import Login from './components/Login.jsx'
 import Register from './components/Register.jsx'
 import UserDashboard from './components/UserDashboard.jsx'
 import CreateSession from './components/CreateSession.jsx'
 import JoinSession from './components/JoinSession.jsx'
-import VotingSession from './components/VotingSession.jsx'
 import GuestJoinSession from './components/GuestJoinSession.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Vote, Users, ArrowLeft, Loader2 } from 'lucide-react'
-import { DarkModeProvider } from './hooks/useDarkMode.jsx'
-import { DarkModeToggleCompact } from './components/ui/dark-mode-toggle.jsx'
+import VotingSession from './components/VotingSession.jsx'
 import './App.css'
 
-// Function to get initial user state from sessionStorage
+// Utility functions for sessionStorage
 const getInitialUserState = () => {
   try {
-    const savedUser = sessionStorage.getItem('currentUser')
-    return savedUser ? JSON.parse(savedUser) : null
+    const storedUser = sessionStorage.getItem('currentUser')
+    return storedUser ? JSON.parse(storedUser) : null
   } catch (error) {
-    console.error('Error loading user from sessionStorage:', error)
+    console.error('Error parsing stored user:', error)
     return null
   }
 }
 
-// Function to get initial session data from sessionStorage
 const getInitialSessionData = () => {
   try {
-    const savedSessionData = sessionStorage.getItem('sessionData')
-    return savedSessionData ? JSON.parse(savedSessionData) : {
+    const storedSessionData = sessionStorage.getItem('sessionData')
+    return storedSessionData ? JSON.parse(storedSessionData) : {
       sessionId: null,
       isCreator: false,
       creatorName: '',
       guestUser: null
     }
   } catch (error) {
-    console.error('Error loading session data from sessionStorage:', error)
+    console.error('Error parsing stored session data:', error)
     return {
       sessionId: null,
       isCreator: false,
@@ -45,12 +42,72 @@ const getInitialSessionData = () => {
   }
 }
 
+const getInitialViewState = () => {
+  try {
+    const storedView = localStorage.getItem('currentView')
+    const storedUser = sessionStorage.getItem('currentUser')
+    const user = storedUser ? JSON.parse(storedUser) : null
+
+    // If no stored view or user state has changed, determine based on user
+    if (!storedView || (storedView !== 'login' && storedView !== 'register' && storedView !== 'guest-join' && !user)) {
+      return user ? 'dashboard' : 'login'
+    }
+
+    return storedView
+  } catch (error) {
+    console.error('Error parsing stored view:', error)
+    const storedUser = sessionStorage.getItem('currentUser')
+    const user = storedUser ? JSON.parse(storedUser) : null
+    return user ? 'dashboard' : 'login'
+  }
+}
+
+// Navigation history management
+class NavigationHistory {
+  constructor() {
+    this.history = []
+    this.currentIndex = -1
+  }
+
+  push(view, data = {}) {
+    // Remove any future history if we're not at the end
+    this.history = this.history.slice(0, this.currentIndex + 1)
+
+    // Add new entry
+    this.history.push({ view, data, timestamp: Date.now() })
+    this.currentIndex = this.history.length - 1
+
+    // Limit history size
+    if (this.history.length > 50) {
+      this.history = this.history.slice(-50)
+      this.currentIndex = this.history.length - 1
+    }
+  }
+
+  back() {
+    if (this.currentIndex > 0) {
+      this.currentIndex--
+      return this.history[this.currentIndex]
+    }
+    return null
+  }
+
+  canGoBack() {
+    return this.currentIndex > 0
+  }
+
+  getCurrentEntry() {
+    return this.currentIndex >= 0 ? this.history[this.currentIndex] : null
+  }
+}
+
 function App() {
   const initialUser = getInitialUserState()
-  const [currentView, setCurrentView] = useState(initialUser ? 'dashboard' : 'login') // Set initial view based on stored user
-  const [user, setUser] = useState(initialUser) // Initialize from sessionStorage
+  const [currentView, setCurrentView] = useState(getInitialViewState())
+  const [user, setUser] = useState(initialUser)
   const [loading, setLoading] = useState(true)
-  const [sessionData, setSessionData] = useState(getInitialSessionData) // Initialize from sessionStorage
+  const [sessionData, setSessionData] = useState(getInitialSessionData)
+  const [navigationHistory] = useState(new NavigationHistory())
 
   // URL parameter handling for session sharing
   const [urlSessionId, setUrlSessionId] = useState(null)
@@ -77,6 +134,48 @@ function App() {
     }
   }, [sessionData])
 
+  // Save current view to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('currentView', currentView)
+    } catch (error) {
+      console.error('Error saving view to localStorage:', error)
+    }
+  }, [currentView])
+
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = (event) => {
+      event.preventDefault() // Prevent default browser navigation
+
+      const previousEntry = navigationHistory.back()
+      if (previousEntry) {
+        setCurrentView(previousEntry.view)
+        if (previousEntry.data.sessionData) {
+          setSessionData(previousEntry.data.sessionData)
+        }
+      } else {
+        // If no history, go to appropriate default view
+        if (user) {
+          navigateToView('dashboard')
+        } else {
+          navigateToView('login')
+        }
+      }
+    }
+
+    // Add custom state to prevent external navigation history
+    if (window.location.pathname === '/') {
+      window.history.replaceState({ internal: true }, '', '/')
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [navigationHistory, user])
+
   useEffect(() => {
     // Get session ID from URL synchronously
     const sessionIdFromUrl = getSessionIdFromUrl()
@@ -86,6 +185,20 @@ function App() {
     checkAuthStatus(sessionIdFromUrl)
   }, [])
 
+  // Helper function to navigate with history tracking
+  const navigateToView = (newView, data = {}) => {
+    // Add current state to history before navigating
+    navigationHistory.push(currentView, {
+      sessionData: { ...sessionData },
+      ...data
+    })
+
+    // Push a new history state to prevent external back navigation
+    window.history.pushState({ internal: true, view: newView }, '', '/')
+
+    setCurrentView(newView)
+  }
+
   // Extract session ID from URL synchronously
   const getSessionIdFromUrl = () => {
     const path = window.location.pathname
@@ -94,7 +207,7 @@ function App() {
     if (sessionMatch) {
       const sessionId = sessionMatch[1]
       // Clear the URL to avoid confusion
-      window.history.replaceState({}, '', '/')
+      window.history.replaceState({ internal: true }, '', '/')
       return sessionId
     }
     return null
@@ -108,35 +221,35 @@ function App() {
 
       if (response.ok) {
         const userData = await response.json()
-        setUser(userData.user) // Extract user from response object
+        setUser(userData.user)
 
-        // If we have a session ID from URL and user is authenticated, join directly
+        // If we have a session ID from URL and user is authenticated, go to guest join
         if (sessionIdFromUrl) {
-          handleSessionJoined(sessionIdFromUrl, false, '', null)
-        } else {
-          setCurrentView('dashboard')
+          navigateToView('guest-join')
+        } else if (currentView === 'login' || currentView === 'register') {
+          // Only navigate to dashboard if currently on login/register
+          navigateToView('dashboard')
         }
       } else {
-        // User not authenticated - clear stored user data
+        // User not authenticated
         setUser(null)
-        // Clear sessionStorage when user is not authenticated
-        sessionStorage.removeItem('currentUser')
+
+        // If we have a session ID from URL, go to guest join
         if (sessionIdFromUrl) {
-          // Show guest join with pre-filled session ID
-          setCurrentView('guest-join')
-        } else {
-          setCurrentView('login')
+          navigateToView('guest-join')
+        } else if (currentView !== 'login' && currentView !== 'register' && currentView !== 'guest-join') {
+          // Only navigate to login if not already on auth-related views
+          navigateToView('login')
         }
       }
     } catch (error) {
       console.error('Auth check failed:', error)
-      // Clear stored user data on error
       setUser(null)
-      sessionStorage.removeItem('currentUser')
+
       if (sessionIdFromUrl) {
-        setCurrentView('guest-join')
-      } else {
-        setCurrentView('login')
+        navigateToView('guest-join')
+      } else if (currentView !== 'login' && currentView !== 'register' && currentView !== 'guest-join') {
+        navigateToView('login')
       }
     } finally {
       setLoading(false)
@@ -146,22 +259,22 @@ function App() {
   const handleLogin = (userData) => {
     setUser(userData)
 
-    // If we have a session ID from URL, join directly after login
+    // Check if we should redirect to a session from URL
     if (urlSessionId) {
-      handleSessionJoined(urlSessionId, false, '', null)
+      navigateToView('guest-join')
     } else {
-      setCurrentView('dashboard')
+      navigateToView('dashboard')
     }
   }
 
   const handleRegister = (userData) => {
     setUser(userData)
 
-    // If we have a session ID from URL, join directly after registration
+    // Check if we should redirect to a session from URL
     if (urlSessionId) {
-      handleSessionJoined(urlSessionId, false, '', null)
+      navigateToView('guest-join')
     } else {
-      setCurrentView('dashboard')
+      navigateToView('dashboard')
     }
   }
 
@@ -172,18 +285,21 @@ function App() {
         credentials: 'include'
       })
     } catch (error) {
-      console.error('Logout failed:', error)
-    } finally {
-      setUser(null)
-      setUrlSessionId(null)
-      setSessionData({
-        sessionId: null,
-        isCreator: false,
-        creatorName: '',
-        guestUser: null
-      })
-      setCurrentView('login')
+      console.error('Logout request failed:', error)
     }
+
+    setUser(null)
+    setSessionData({
+      sessionId: null,
+      isCreator: false,
+      creatorName: '',
+      guestUser: null
+    })
+
+    // Clear history and navigate to login
+    navigationHistory.history = []
+    navigationHistory.currentIndex = -1
+    navigateToView('login')
   }
 
   const handleSessionCreated = (sessionId) => {
@@ -193,7 +309,7 @@ function App() {
       creatorName: user?.username || '',
       guestUser: null
     })
-    setCurrentView('voting')
+    navigateToView('voting')
   }
 
   const handleSessionJoined = (sessionId, isCreator = false, creatorName = '', guestData = null) => {
@@ -203,31 +319,51 @@ function App() {
       creatorName,
       guestUser: guestData
     })
-    setCurrentView('voting')
+    navigateToView('voting')
     // Clear URL session ID once we've joined
     setUrlSessionId(null)
   }
 
   const goToDashboard = () => {
-    setCurrentView('dashboard')
     setSessionData({
       sessionId: null,
       isCreator: false,
       creatorName: '',
       guestUser: null
     })
+    navigateToView('dashboard')
   }
 
   const goToLogin = () => {
-    setCurrentView('login')
+    navigateToView('login')
   }
 
   const goToRegister = () => {
-    setCurrentView('register')
+    navigateToView('register')
   }
 
   const goToGuestJoin = () => {
-    setCurrentView('guest-join')
+    navigateToView('guest-join')
+  }
+
+  // Function to go back in internal navigation history
+  const goBack = () => {
+    const previousEntry = navigationHistory.back()
+    if (previousEntry) {
+      setCurrentView(previousEntry.view)
+      if (previousEntry.data.sessionData) {
+        setSessionData(previousEntry.data.sessionData)
+      }
+      // Update browser history
+      window.history.pushState({ internal: true, view: previousEntry.view }, '', '/')
+    } else {
+      // If no history, go to appropriate default view
+      if (user) {
+        goToDashboard()
+      } else {
+        goToLogin()
+      }
+    }
   }
 
   if (loading) {
@@ -249,15 +385,15 @@ function App() {
         return (
           <Login
             onLogin={handleLogin}
-            onSwitchToRegister={() => setCurrentView('register')}
-            onGuestJoin={() => setCurrentView('guest-join')}
+            onSwitchToRegister={() => navigateToView('register')}
+            onGuestJoin={() => navigateToView('guest-join')}
           />
         )
       case 'register':
         return (
           <Register
             onRegister={handleRegister}
-            onSwitchToLogin={() => setCurrentView('login')}
+            onSwitchToLogin={() => navigateToView('login')}
           />
         )
       case 'dashboard':
@@ -266,20 +402,22 @@ function App() {
             user={user}
             onLogout={handleLogout}
             onJoinSession={handleSessionJoined}
-            onCreateSession={() => setCurrentView('create-session')}
-            onJoinBySessionId={() => setCurrentView('join-session')}
+            onCreateSession={() => navigateToView('create-session')}
+            onJoinBySessionId={() => navigateToView('join-session')}
           />
         )
       case 'create-session':
         return (
           <CreateSession
             onSessionCreated={handleSessionCreated}
+            onBack={goToDashboard}
           />
         )
       case 'join-session':
         return (
           <JoinSession
             onSessionJoined={handleSessionJoined}
+            onBack={goToDashboard}
           />
         )
       case 'guest-join':
@@ -298,14 +436,15 @@ function App() {
             creatorName={sessionData.creatorName}
             currentUser={user}
             guestUser={sessionData.guestUser}
+            onBack={user ? goToDashboard : goToLogin}
           />
         )
       default:
         return (
           <Login
             onLogin={handleLogin}
-            onSwitchToRegister={() => setCurrentView('register')}
-            onGuestJoin={() => setCurrentView('guest-join')}
+            onSwitchToRegister={() => navigateToView('register')}
+            onGuestJoin={() => navigateToView('guest-join')}
           />
         )
     }
