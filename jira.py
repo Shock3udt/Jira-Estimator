@@ -230,12 +230,21 @@ def create_session():
 
         # Store issues
         for issue in issues:
+            # Get current story points value
+            current_story_points = issue['fields'].get('customfield_12310243')
+            if current_story_points is not None:
+                try:
+                    current_story_points = float(current_story_points)
+                except (ValueError, TypeError):
+                    current_story_points = None
+
             jira_issue = JiraIssue(
                 session_id=session_id,
                 issue_key=issue['key'],
                 issue_title=issue['fields']['summary'],
                 issue_description=issue['fields'].get('description', ''),
                 acceptance_criteria=issue['fields'].get('customfield_12315940', ''),
+                current_story_points=current_story_points,
                 issue_url=f"{jira_url}/browse/{issue['key']}"
             )
             db.session.add(jira_issue)
@@ -497,7 +506,7 @@ def fetch_jira_issues(jira_url, token, jql_query):
     params = {
         'jql': jql_query,
         'maxResults': 50,
-        'fields': 'summary,description,status,assignee,priority,customfield_12315940'
+        'fields': 'summary,description,status,assignee,priority,customfield_12315940,customfield_12310243'
     }
 
     response = requests.get(search_url, headers=headers, params=params)
@@ -573,6 +582,259 @@ def remove_issue():
         voting_session.remove_issue(issue_key)
 
         return jsonify({'message': 'Issue removed successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@jira_bp.route('/push-story-points', methods=['POST'])
+def push_story_points():
+    """Push story points for a single issue to Jira"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        issue_key = data.get('issue_key')
+        creator_name = data.get('creator_name')  # For backward compatibility
+
+        # Check for authenticated user
+        user_id = session.get('user_id')
+
+        if not all([session_id, issue_key]):
+            return jsonify({'error': 'Session ID and Issue Key are required'}), 400
+
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        # Check if user can manage the session
+        can_manage = voting_session.can_be_managed_by_user(user_id=user_id, user_name=creator_name)
+        if not can_manage:
+            return jsonify({'error': 'Only the session creator can push story points'}), 403
+
+        # Check if issue exists in the session
+        issue = JiraIssue.query.filter_by(session_id=session_id, issue_key=issue_key).first()
+        if not issue:
+            return jsonify({'error': 'Issue not found in session'}), 404
+
+        # Get votes for this specific issue
+        votes = Vote.query.filter_by(session_id=session_id, issue_key=issue_key).all()
+
+        if not votes:
+            return jsonify({'error': 'No votes found for this issue'}), 400
+
+        # Calculate average (convert string estimations to numbers)
+        try:
+            numeric_votes = []
+            for vote in votes:
+                try:
+                    numeric_votes.append(float(vote.estimation))
+                except (ValueError, TypeError):
+                    # Skip non-numeric or invalid votes
+                    continue
+
+            if not numeric_votes:
+                return jsonify({'error': 'No valid numeric votes found for this issue'}), 400
+
+            average = sum(numeric_votes) / len(numeric_votes)
+            closest_fibonacci = find_closest_fibonacci(average)
+
+            # Update Jira
+            try:
+                success = update_jira_custom_field(
+                    voting_session.jira_url,
+                    voting_session.jira_token,
+                    issue.issue_key,
+                    closest_fibonacci
+                )
+
+                if success:
+                    # Update the current story points in our database
+                    issue.current_story_points = closest_fibonacci
+                    db.session.commit()
+
+                    return jsonify({
+                        'message': 'Story points pushed successfully',
+                        'issue_key': issue.issue_key,
+                        'average': round(average, 2),
+                        'elected_value': closest_fibonacci,
+                        'votes_count': len(numeric_votes)
+                    }), 200
+                else:
+                    return jsonify({'error': 'Failed to update Jira'}), 500
+
+            except Exception as e:
+                return jsonify({'error': f"Jira update failed: {str(e)}"}), 500
+
+        except Exception as e:
+            return jsonify({'error': f"Error calculating story points: {str(e)}"}), 500
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@jira_bp.route('/refresh-session', methods=['POST'])
+def refresh_session():
+    """Refresh entire session: re-run JQL query, update existing issues, add new ones"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        creator_name = data.get('creator_name')  # For backward compatibility
+
+        # Check for authenticated user
+        user_id = session.get('user_id')
+
+        if not session_id:
+            return jsonify({'error': 'Session ID is required'}), 400
+
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        # Check if session is closed
+        if voting_session.is_closed:
+            return jsonify({'error': 'Cannot refresh a closed session'}), 400
+
+        # Check if user can manage the session
+        can_manage = voting_session.can_be_managed_by_user(user_id=user_id, user_name=creator_name)
+        if not can_manage:
+            return jsonify({'error': 'Only the session creator can refresh the session'}), 403
+
+        # Fetch fresh issues from Jira
+        try:
+            fresh_issues = fetch_jira_issues(voting_session.jira_url, voting_session.jira_token, voting_session.jira_query)
+        except Exception as e:
+            return jsonify({'error': f'Failed to fetch issues from Jira: {str(e)}'}), 400
+
+        # Get existing issues in the session
+        existing_issues = {issue.issue_key: issue for issue in JiraIssue.query.filter_by(session_id=session_id).all()}
+
+        updated_count = 0
+        added_count = 0
+
+        # Process each fresh issue
+        for fresh_issue in fresh_issues:
+            issue_key = fresh_issue['key']
+
+            # Get current story points value
+            current_story_points = fresh_issue['fields'].get('customfield_12310243')
+            if current_story_points is not None:
+                try:
+                    current_story_points = float(current_story_points)
+                except (ValueError, TypeError):
+                    current_story_points = None
+
+            if issue_key in existing_issues:
+                # Update existing issue (keep votes)
+                existing_issue = existing_issues[issue_key]
+                existing_issue.issue_title = fresh_issue['fields']['summary']
+                existing_issue.issue_description = fresh_issue['fields'].get('description', '')
+                existing_issue.acceptance_criteria = fresh_issue['fields'].get('customfield_12315940', '')
+                existing_issue.current_story_points = current_story_points
+                updated_count += 1
+            else:
+                # Add new issue
+                new_issue = JiraIssue(
+                    session_id=session_id,
+                    issue_key=issue_key,
+                    issue_title=fresh_issue['fields']['summary'],
+                    issue_description=fresh_issue['fields'].get('description', ''),
+                    acceptance_criteria=fresh_issue['fields'].get('customfield_12315940', ''),
+                    current_story_points=current_story_points,
+                    issue_url=f"{voting_session.jira_url}/browse/{issue_key}"
+                )
+                db.session.add(new_issue)
+                added_count += 1
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Session refreshed successfully',
+            'updated_issues': updated_count,
+            'added_issues': added_count,
+            'total_issues': len(fresh_issues)
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@jira_bp.route('/refresh-task', methods=['POST'])
+def refresh_task():
+    """Refresh a single task: update its fields from Jira while keeping votes"""
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        issue_key = data.get('issue_key')
+        creator_name = data.get('creator_name')  # For backward compatibility
+
+        # Check for authenticated user
+        user_id = session.get('user_id')
+
+        if not all([session_id, issue_key]):
+            return jsonify({'error': 'Session ID and Issue Key are required'}), 400
+
+        voting_session = VotingSession.query.filter_by(session_id=session_id).first()
+        if not voting_session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        # Check if session is closed
+        if voting_session.is_closed:
+            return jsonify({'error': 'Cannot refresh tasks in a closed session'}), 400
+
+        # Check if user can manage the session
+        can_manage = voting_session.can_be_managed_by_user(user_id=user_id, user_name=creator_name)
+        if not can_manage:
+            return jsonify({'error': 'Only the session creator can refresh tasks'}), 403
+
+        # Check if issue exists in the session
+        issue = JiraIssue.query.filter_by(session_id=session_id, issue_key=issue_key).first()
+        if not issue:
+            return jsonify({'error': 'Issue not found in session'}), 404
+
+        # Fetch specific issue from Jira
+        try:
+            headers = {
+                'Authorization': f'Bearer {voting_session.jira_token}',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+
+            jira_url = voting_session.jira_url.rstrip('/')
+            issue_url = f"{jira_url}/rest/api/2/issue/{issue_key}"
+
+            params = {
+                'fields': 'summary,description,status,assignee,priority,customfield_12315940,customfield_12310243'
+            }
+
+            response = requests.get(issue_url, headers=headers, params=params)
+            response.raise_for_status()
+
+            fresh_issue = response.json()
+
+        except Exception as e:
+            return jsonify({'error': f'Failed to fetch issue from Jira: {str(e)}'}), 400
+
+        # Get current story points value
+        current_story_points = fresh_issue['fields'].get('customfield_12310243')
+        if current_story_points is not None:
+            try:
+                current_story_points = float(current_story_points)
+            except (ValueError, TypeError):
+                current_story_points = None
+
+        # Update the issue (keep votes)
+        issue.issue_title = fresh_issue['fields']['summary']
+        issue.issue_description = fresh_issue['fields'].get('description', '')
+        issue.acceptance_criteria = fresh_issue['fields'].get('customfield_12315940', '')
+        issue.current_story_points = current_story_points
+
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Task refreshed successfully',
+            'issue_key': issue_key,
+            'updated_issue': issue.to_dict()
+        }), 200
 
     except Exception as e:
         db.session.rollback()

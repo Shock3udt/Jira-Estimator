@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { Separator } from '@/components/ui/separator.jsx'
-import { ExternalLink, Users, Clock, CheckCircle, UserPlus, Copy, Link, Check, ArrowLeft } from 'lucide-react'
+import { ExternalLink, Users, Clock, CheckCircle, UserPlus, Copy, Link, Check, ArrowLeft, RefreshCw, Send, Star, Zap } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -28,6 +28,11 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
   // Share link functionality
   const [showShareLink, setShowShareLink] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+
+  // New functionality state
+  const [refreshingSession, setRefreshingSession] = useState(false)
+  const [refreshingTask, setRefreshingTask] = useState({})
+  const [pushingStoryPoints, setPushingStoryPoints] = useState({})
 
   // Determine effective voter name and type
   const getVoterInfo = () => {
@@ -400,6 +405,119 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
     return `${window.location.origin}/join/${sessionId}`
   }
 
+  // Push story points for individual issue
+  const pushStoryPoints = async (issueKey) => {
+    setPushingStoryPoints(prev => ({ ...prev, [issueKey]: true }))
+
+    try {
+      const payload = {
+        session_id: sessionId,
+        issue_key: issueKey
+      }
+
+      // Add creator name for backward compatibility if not authenticated user
+      if (!currentUser && creatorName) {
+        payload.creator_name = creatorName
+      }
+
+      const response = await fetch('/api/push-story-points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Refresh the session data to get updated story points
+        await fetchSession()
+        alert(`Story points pushed successfully! ${data.elected_value} points assigned to ${issueKey}`)
+      } else {
+        alert(`Failed to push story points: ${data.error}`)
+      }
+    } catch (err) {
+      alert(`Error pushing story points: ${err.message}`)
+    } finally {
+      setPushingStoryPoints(prev => ({ ...prev, [issueKey]: false }))
+    }
+  }
+
+  // Refresh entire session
+  const refreshSession = async () => {
+    setRefreshingSession(true)
+
+    try {
+      const payload = {
+        session_id: sessionId
+      }
+
+      // Add creator name for backward compatibility if not authenticated user
+      if (!currentUser && creatorName) {
+        payload.creator_name = creatorName
+      }
+
+      const response = await fetch('/api/refresh-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Refresh the session data
+        await fetchSession()
+        alert(`Session refreshed successfully! Updated ${data.updated_issues} issues, added ${data.added_issues} new issues.`)
+      } else {
+        alert(`Failed to refresh session: ${data.error}`)
+      }
+    } catch (err) {
+      alert(`Error refreshing session: ${err.message}`)
+    } finally {
+      setRefreshingSession(false)
+    }
+  }
+
+  // Refresh individual task
+  const refreshTask = async (issueKey) => {
+    setRefreshingTask(prev => ({ ...prev, [issueKey]: true }))
+
+    try {
+      const payload = {
+        session_id: sessionId,
+        issue_key: issueKey
+      }
+
+      // Add creator name for backward compatibility if not authenticated user
+      if (!currentUser && creatorName) {
+        payload.creator_name = creatorName
+      }
+
+      const response = await fetch('/api/refresh-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Refresh the session data
+        await fetchSession()
+        alert(`Task ${issueKey} refreshed successfully!`)
+      } else {
+        alert(`Failed to refresh task: ${data.error}`)
+      }
+    } catch (err) {
+      alert(`Error refreshing task: ${err.message}`)
+    } finally {
+      setRefreshingTask(prev => ({ ...prev, [issueKey]: false }))
+    }
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading session...</div>
   }
@@ -459,9 +577,21 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
               {canUserCloseSession() && (
                 <>
                   {!session.is_closed && (
-                    <Button onClick={closeSession} variant="destructive">
-                      Close Session
-                    </Button>
+                    <>
+                      <Button
+                        onClick={refreshSession}
+                        variant="outline"
+                        size="sm"
+                        disabled={refreshingSession}
+                        className="flex items-center gap-2"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${refreshingSession ? 'animate-spin' : ''}`} />
+                        {refreshingSession ? 'Refreshing...' : 'Refresh Session'}
+                      </Button>
+                      <Button onClick={closeSession} variant="destructive">
+                        Close Session
+                      </Button>
+                    </>
                   )}
                   <Button onClick={deleteSession} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
                     Delete Session
@@ -648,6 +778,13 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
+                      {/* Story Points Badge */}
+                      {issue.current_story_points !== null && issue.current_story_points !== undefined && (
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                          <Star className="w-3 h-3" />
+                          {issue.current_story_points} SP
+                        </Badge>
+                      )}
                     </CardTitle>
                     <CardDescription className="text-base">
                       {issue.issue_title}
@@ -665,14 +802,38 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
                       </div>
                     )}
                     {canUserCloseSession() && !session.is_closed && (
-                      <Button
-                        onClick={() => removeIssue(issue.issue_key)}
-                        variant="outline"
-                        size="sm"
-                        className="border-red-300 text-red-600 hover:bg-red-50"
-                      >
-                        Remove
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => refreshTask(issue.issue_key)}
+                          variant="outline"
+                          size="sm"
+                          disabled={refreshingTask[issue.issue_key]}
+                          className="flex items-center gap-1"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${refreshingTask[issue.issue_key] ? 'animate-spin' : ''}`} />
+                          {refreshingTask[issue.issue_key] ? 'Refreshing...' : 'Refresh'}
+                        </Button>
+                        {stats.voteCount > 0 && (
+                          <Button
+                            onClick={() => pushStoryPoints(issue.issue_key)}
+                            variant="outline"
+                            size="sm"
+                            disabled={pushingStoryPoints[issue.issue_key]}
+                            className="flex items-center gap-1 border-green-300 text-green-600 hover:bg-green-50"
+                          >
+                            <Send className={`w-3 h-3 ${pushingStoryPoints[issue.issue_key] ? 'animate-pulse' : ''}`} />
+                            {pushingStoryPoints[issue.issue_key] ? 'Pushing...' : 'Push SP'}
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => removeIssue(issue.issue_key)}
+                          variant="outline"
+                          size="sm"
+                          className="border-red-300 text-red-600 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>

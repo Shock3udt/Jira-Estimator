@@ -84,6 +84,7 @@ class JiraIssue(db.Model):
     issue_title = db.Column(db.String(500), nullable=False)
     issue_description = db.Column(db.Text)
     acceptance_criteria = db.Column(db.Text)  # Custom field customfield_12315940
+    current_story_points = db.Column(db.Float, nullable=True)  # Current story points from Jira (customfield_12310243)
     issue_url = db.Column(db.String(500), nullable=False)
 
     def to_dict(self):
@@ -94,6 +95,7 @@ class JiraIssue(db.Model):
             'issue_title': self.issue_title,
             'issue_description': self.issue_description,
             'acceptance_criteria': self.acceptance_criteria,
+            'current_story_points': self.current_story_points,
             'issue_url': self.issue_url
         }
 
