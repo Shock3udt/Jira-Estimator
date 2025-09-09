@@ -12,7 +12,8 @@ const CreateSession = ({ onSessionCreated, onBack }) => {
   const [formData, setFormData] = useState({
     jira_url: '',
     jira_token: '',
-    jira_query: ''
+    jira_query: '',
+    voting_mode: 'story_points'
   })
   const [savedSettings, setSavedSettings] = useState({
     jira_url: '',
@@ -256,6 +257,24 @@ const CreateSession = ({ onSessionCreated, onBack }) => {
                 <li>assignee = currentUser() AND status != Done</li>
                 <li>project in (PROJ1, PROJ2) AND priority = High</li>
               </ul>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="voting_mode">Voting Mode</Label>
+            <select
+              id="voting_mode"
+              name="voting_mode"
+              value={formData.voting_mode}
+              onChange={handleChange}
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="story_points">Story Points (1, 2, 3, 5, 8, 13, 21, ?)</option>
+              <option value="t_shirt_sizes">T-Shirt Sizes (XS, S, M, L, XL)</option>
+            </select>
+            <div className="text-xs text-gray-600">
+              <p><strong>Story Points:</strong> Use Fibonacci sequence for estimation complexity</p>
+              <p><strong>T-Shirt Sizes:</strong> Use relative sizing for simpler estimation</p>
             </div>
           </div>
 

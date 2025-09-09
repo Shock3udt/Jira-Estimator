@@ -48,8 +48,54 @@ def find_closest_fibonacci(value):
     # If value is larger than all Fibonacci numbers in sequence
     return fib_sequence[-1]
 
-def update_jira_custom_field(jira_url, token, issue_key, field_value, retries=2, delay=1):
-    """Update Jira issue custom field customfield_12310243 with retries"""
+def get_t_shirt_sizes():
+    """Get T-shirt sizes in order from smallest to largest"""
+    return ['XS', 'S', 'M', 'L', 'XL']
+
+def calculate_t_shirt_size_consensus(votes):
+    """Calculate T-shirt size consensus from votes.
+    Returns the most common vote. If there's a tie, returns the larger size."""
+    if not votes:
+        return None
+
+    # Count votes for each size
+    vote_counts = {}
+    valid_sizes = get_t_shirt_sizes()
+
+    for vote in votes:
+        if vote in valid_sizes:
+            vote_counts[vote] = vote_counts.get(vote, 0) + 1
+
+    if not vote_counts:
+        return None
+
+    # Find the maximum count
+    max_count = max(vote_counts.values())
+
+    # Get all sizes with the maximum count
+    tied_sizes = [size for size, count in vote_counts.items() if count == max_count]
+
+    # If there's a tie, return the largest size among the tied ones
+    size_order = get_t_shirt_sizes()
+    for size in reversed(size_order):  # Start from largest
+        if size in tied_sizes:
+            return size
+
+    return tied_sizes[0]  # Fallback, shouldn't reach here
+
+def update_jira_custom_field(jira_url, token, issue_key, field_value, custom_field_id="customfield_12310243", is_object_value=False, retries=2, delay=1):
+    """Update Jira issue custom field with retries
+
+    Args:
+        jira_url: Jira instance URL
+        token: API token
+        issue_key: Issue key to update
+        field_value: Value to set
+        custom_field_id: Custom field ID (default: story points field)
+        is_object_value: Whether the field_value should be wrapped in an object with 'value' key
+        retries: Number of retries on failure
+        delay: Delay between retries
+    """
     headers = {
         'Authorization': f'Bearer {token}',
         'Accept': 'application/json',
@@ -59,9 +105,15 @@ def update_jira_custom_field(jira_url, token, issue_key, field_value, retries=2,
     jira_url = jira_url.rstrip('/')
     update_url = f"{jira_url}/rest/api/2/issue/{issue_key}"
 
+    # Handle different field value formats
+    if is_object_value:
+        field_payload_value = {"value": field_value}
+    else:
+        field_payload_value = field_value
+
     payload = {
         "fields": {
-            "customfield_12310243": field_value
+            custom_field_id: field_payload_value
         }
     }
 
@@ -93,6 +145,7 @@ def calculate_and_update_estimations(session):
         votes_by_issue[vote.issue_key].append(vote)
 
     update_results = []
+    voting_mode = session.voting_mode or 'story_points'  # Default for backward compatibility
 
     for issue in issues:
         issue_votes = votes_by_issue.get(issue.issue_key, [])
@@ -106,49 +159,89 @@ def calculate_and_update_estimations(session):
             })
             continue
 
-        # Calculate average (convert string estimations to numbers)
         try:
-            numeric_votes = []
-            for vote in issue_votes:
-                try:
-                    numeric_votes.append(float(vote.estimation))
-                except (ValueError, TypeError):
-                    # Skip non-numeric or invalid votes
+            if voting_mode == 'story_points':
+                # Calculate average (convert string estimations to numbers)
+                numeric_votes = []
+                for vote in issue_votes:
+                    try:
+                        numeric_votes.append(float(vote.estimation))
+                    except (ValueError, TypeError):
+                        # Skip non-numeric or invalid votes
+                        continue
+
+                if not numeric_votes:
+                    update_results.append({
+                        'issue_key': issue.issue_key,
+                        'status': 'skipped',
+                        'reason': 'No valid numeric votes'
+                    })
                     continue
 
-            if not numeric_votes:
-                update_results.append({
-                    'issue_key': issue.issue_key,
-                    'status': 'skipped',
-                    'reason': 'No valid numeric votes'
-                })
-                continue
+                average = sum(numeric_votes) / len(numeric_votes)
+                elected_value = find_closest_fibonacci(average)
 
-            average = sum(numeric_votes) / len(numeric_votes)
-            closest_fibonacci = find_closest_fibonacci(average)
+                # Update Jira with story points
+                try:
+                    success = update_jira_custom_field(
+                        session.jira_url,
+                        session.jira_token,
+                        issue.issue_key,
+                        elected_value,
+                        custom_field_id="customfield_12310243",
+                        is_object_value=False
+                    )
 
-            # Update Jira
-            try:
-                success = update_jira_custom_field(
-                    session.jira_url,
-                    session.jira_token,
-                    issue.issue_key,
-                    closest_fibonacci
-                )
+                    update_results.append({
+                        'issue_key': issue.issue_key,
+                        'status': 'success' if success else 'failed',
+                        'average': round(average, 2),
+                        'elected_value': elected_value,
+                        'votes_count': len(numeric_votes)
+                    })
+                except Exception as e:
+                    update_results.append({
+                        'issue_key': issue.issue_key,
+                        'status': 'error',
+                        'error': f"Jira update failed after retries: {str(e)}"
+                    })
 
-                update_results.append({
-                    'issue_key': issue.issue_key,
-                    'status': 'success' if success else 'failed',
-                    'average': round(average, 2),
-                    'elected_value': closest_fibonacci,
-                    'votes_count': len(numeric_votes)
-                })
-            except Exception as e:
-                update_results.append({
-                    'issue_key': issue.issue_key,
-                    'status': 'error',
-                    'error': f"Jira update failed after retries: {str(e)}"
-                })
+            elif voting_mode == 't_shirt_sizes':
+                # Calculate T-shirt size consensus
+                size_votes = [vote.estimation for vote in issue_votes]
+                elected_value = calculate_t_shirt_size_consensus(size_votes)
+
+                if not elected_value:
+                    update_results.append({
+                        'issue_key': issue.issue_key,
+                        'status': 'skipped',
+                        'reason': 'No valid T-shirt size votes'
+                    })
+                    continue
+
+                # Update Jira with T-shirt size
+                try:
+                    success = update_jira_custom_field(
+                        session.jira_url,
+                        session.jira_token,
+                        issue.issue_key,
+                        elected_value,
+                        custom_field_id="customfield_12320852",
+                        is_object_value=True
+                    )
+
+                    update_results.append({
+                        'issue_key': issue.issue_key,
+                        'status': 'success' if success else 'failed',
+                        'elected_value': elected_value,
+                        'votes_count': len(size_votes)
+                    })
+                except Exception as e:
+                    update_results.append({
+                        'issue_key': issue.issue_key,
+                        'status': 'error',
+                        'error': f"Jira update failed after retries: {str(e)}"
+                    })
 
         except Exception as e:
             update_results.append({
@@ -167,6 +260,7 @@ def create_session():
         jira_token = data.get('jira_token')
         jira_query = data.get('jira_query')
         creator_name = data.get('creator_name')  # For backward compatibility
+        voting_mode = data.get('voting_mode', 'story_points')  # Default to story_points for backward compatibility
         use_saved_credentials = data.get('use_saved_credentials', False)
         test_connection = data.get('test_connection', False)  # New flag for testing
 
@@ -200,6 +294,10 @@ def create_session():
         if not all([jira_url, jira_token, jira_query]):
             return jsonify({'error': 'Missing required fields'}), 400
 
+        # Validate voting mode
+        if voting_mode not in ['story_points', 't_shirt_sizes']:
+            return jsonify({'error': 'Invalid voting mode. Must be "story_points" or "t_shirt_sizes"'}), 400
+
         # Test Jira connection
         try:
             issues = fetch_jira_issues(jira_url, jira_token, jira_query)
@@ -222,6 +320,7 @@ def create_session():
             jira_url=jira_url,
             jira_token=jira_token,
             jira_query=jira_query,
+            voting_mode=voting_mode,
             creator_id=user.id if user else None,
             creator_name=creator_name if not user else None
         )
@@ -589,7 +688,7 @@ def remove_issue():
 
 @jira_bp.route('/push-story-points', methods=['POST'])
 def push_story_points():
-    """Push story points for a single issue to Jira"""
+    """Push estimations (story points or T-shirt sizes) for a single issue to Jira"""
     try:
         data = request.get_json()
         session_id = data.get('session_id')
@@ -622,51 +721,82 @@ def push_story_points():
         if not votes:
             return jsonify({'error': 'No votes found for this issue'}), 400
 
-        # Calculate average (convert string estimations to numbers)
+        voting_mode = voting_session.voting_mode or 'story_points'  # Default for backward compatibility
+
         try:
-            numeric_votes = []
-            for vote in votes:
-                try:
-                    numeric_votes.append(float(vote.estimation))
-                except (ValueError, TypeError):
-                    # Skip non-numeric or invalid votes
-                    continue
+            if voting_mode == 'story_points':
+                # Calculate average (convert string estimations to numbers)
+                numeric_votes = []
+                for vote in votes:
+                    try:
+                        numeric_votes.append(float(vote.estimation))
+                    except (ValueError, TypeError):
+                        # Skip non-numeric or invalid votes
+                        continue
 
-            if not numeric_votes:
-                return jsonify({'error': 'No valid numeric votes found for this issue'}), 400
+                if not numeric_votes:
+                    return jsonify({'error': 'No valid numeric votes found for this issue'}), 400
 
-            average = sum(numeric_votes) / len(numeric_votes)
-            closest_fibonacci = find_closest_fibonacci(average)
+                average = sum(numeric_votes) / len(numeric_votes)
+                elected_value = find_closest_fibonacci(average)
 
-            # Update Jira
-            try:
+                # Update Jira with story points
                 success = update_jira_custom_field(
                     voting_session.jira_url,
                     voting_session.jira_token,
                     issue.issue_key,
-                    closest_fibonacci
+                    elected_value,
+                    custom_field_id="customfield_12310243",
+                    is_object_value=False
                 )
 
                 if success:
                     # Update the current story points in our database
-                    issue.current_story_points = closest_fibonacci
+                    issue.current_story_points = elected_value
                     db.session.commit()
 
                     return jsonify({
                         'message': 'Story points pushed successfully',
                         'issue_key': issue.issue_key,
                         'average': round(average, 2),
-                        'elected_value': closest_fibonacci,
+                        'elected_value': elected_value,
                         'votes_count': len(numeric_votes)
                     }), 200
                 else:
                     return jsonify({'error': 'Failed to update Jira'}), 500
 
-            except Exception as e:
-                return jsonify({'error': f"Jira update failed: {str(e)}"}), 500
+            elif voting_mode == 't_shirt_sizes':
+                # Calculate T-shirt size consensus
+                size_votes = [vote.estimation for vote in votes]
+                elected_value = calculate_t_shirt_size_consensus(size_votes)
+
+                if not elected_value:
+                    return jsonify({'error': 'No valid T-shirt size votes found for this issue'}), 400
+
+                # Update Jira with T-shirt size
+                success = update_jira_custom_field(
+                    voting_session.jira_url,
+                    voting_session.jira_token,
+                    issue.issue_key,
+                    elected_value,
+                    custom_field_id="customfield_12320852",
+                    is_object_value=True
+                )
+
+                if success:
+                    db.session.commit()
+
+                    return jsonify({
+                        'message': 'T-shirt size estimate pushed successfully',
+                        'issue_key': issue.issue_key,
+                        'elected_value': elected_value,
+                        'votes_count': len(size_votes)
+                    }), 200
+                else:
+                    return jsonify({'error': 'Failed to update Jira'}), 500
 
         except Exception as e:
-            return jsonify({'error': f"Error calculating story points: {str(e)}"}), 500
+            return jsonify({'error': f"Jira update failed: {str(e)}"}), 500
 
     except Exception as e:
         db.session.rollback()

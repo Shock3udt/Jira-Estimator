@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 const STORY_POINTS = ['1', '2', '3', '5', '8', '13', '21', '?']
+const T_SHIRT_SIZES = ['XS', 'S', 'M', 'L', 'XL']
 
 const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUser, onBack }) => {
   const [session, setSession] = useState(null)
@@ -551,6 +552,9 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
             <div>
               <CardTitle className="flex items-center gap-2">
                 Estimation Session
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                  {session.voting_mode === 't_shirt_sizes' ? 'T-Shirt Sizes' : 'Story Points'}
+                </Badge>
                 {session.is_closed && (
                   <Badge variant="secondary" className="bg-red-100 text-red-800">
                     <CheckCircle className="w-3 h-3 mr-1" />
@@ -822,7 +826,8 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
                             className="flex items-center gap-1 border-green-300 text-green-600 hover:bg-green-50"
                           >
                             <Send className={`w-3 h-3 ${pushingStoryPoints[issue.issue_key] ? 'animate-pulse' : ''}`} />
-                            {pushingStoryPoints[issue.issue_key] ? 'Pushing...' : 'Push SP'}
+                            {pushingStoryPoints[issue.issue_key] ? 'Pushing...' :
+                             session.voting_mode === 't_shirt_sizes' ? 'Push Size' : 'Push SP'}
                           </Button>
                         )}
                         <Button
@@ -921,18 +926,18 @@ const VotingSession = ({ sessionId, isCreator, creatorName, currentUser, guestUs
                 {!session.is_closed && (
                   <div className="mb-4">
                     <div className="flex flex-wrap gap-2">
-                      {STORY_POINTS.map((point) => {
-                        const isSelected = userVote?.estimation === point
+                      {(session.voting_mode === 't_shirt_sizes' ? T_SHIRT_SIZES : STORY_POINTS).map((option) => {
+                        const isSelected = userVote?.estimation === option
                         return (
                           <Button
-                            key={point}
+                            key={option}
                             variant={isSelected ? "default" : "outline"}
                             size="sm"
-                            onClick={() => submitVote(issue.issue_key, point)}
+                            onClick={() => submitVote(issue.issue_key, option)}
                             disabled={submittingVote || !voterInfo}
                             className={isSelected ? "bg-blue-600 hover:bg-blue-700" : ""}
                           >
-                            {point}
+                            {option}
                           </Button>
                         )
                       })}
