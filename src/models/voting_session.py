@@ -16,6 +16,9 @@ class VotingSession(db.Model):
     # Backward compatibility - keep creator_name for existing sessions
     creator_name = db.Column(db.String(100), nullable=True)
 
+    # Voting mode: 'story_points' or 't_shirt_sizes'
+    voting_mode = db.Column(db.String(20), default='story_points', nullable=False)
+
     is_closed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -71,6 +74,7 @@ class VotingSession(db.Model):
             'jira_query': self.jira_query,
             'creator_name': self.get_creator_name(),
             'creator_id': self.creator_id,
+            'voting_mode': self.voting_mode,
             'is_closed': self.is_closed,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
